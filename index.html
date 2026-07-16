@@ -133,6 +133,10 @@
         .outlet-block { page-break-inside: avoid; }
         .upload-progress { height: 4px; background: #e5e7eb; border-radius: 2px; overflow: hidden; margin-top: 4px; }
         .upload-progress-bar { height: 100%; background: linear-gradient(90deg, #0E7C6B, #12A68E); transition: width 0.3s ease; width: 0%; }
+        .sync-btn { font-size: 10px; padding: 4px 10px; border-radius: 12px; background: #e5e7eb; color: #6b7280; cursor: pointer; transition: all 0.2s; border: none; }
+        .sync-btn:hover { background: #d1d5db; }
+        .sync-btn:active { transform: scale(.95); }
+        .sync-btn i { margin-right: 4px; }
     </style>
 </head>
 <body>
@@ -276,7 +280,9 @@
             isUploading: false,
             moreMenuOpen: false,
             syncStatus: 'synced',
-            usersLoaded: false
+            usersLoaded: false,
+            isSyncingAll: false,
+            lastSyncTime: null
         };
 
         function today() { return new Date().toISOString().split('T')[0] }
@@ -382,6 +388,279 @@
             var r = db.exec("SELECT DISTINCT username,name,role,area FROM users WHERE is_active=1 AND role IN ('sales','ase') ORDER BY name");
             if (!r.length) return [];
             return r[0].values.map(function(row) { return { username: row[0], name: row[1], role: row[2], area: row[3] } });
+        }
+
+        // ============================================================
+        // FIREBASE SYNC FUNCTIONS - FULL SYNC
+        // ============================================================
+        async function syncAllFromFirestore() {
+            if (!firestore) {
+                toast('Firebase not available', 'error');
+                return;
+            }
+            
+            if (S.isSyncingAll) {
+                toast('Sync already in progress...', 'info');
+                return;
+            }
+            
+            S.isSyncingAll = true;
+            S.syncStatus = 'syncing';
+            render();
+            toast('🔄 Syncing from cloud...', 'info');
+            
+            try {
+                await syncOrdersFromFirestore();
+                await syncProductsFromFirestore();
+                await syncAssetsFromFirestore();
+                await loadUsersFromFirestore();
+                
+                S.lastSyncTime = new Date().toISOString();
+                S.syncStatus = 'synced';
+                toast('✅ All data synced from cloud successfully!', 'success');
+                render();
+            } catch (e) {
+                console.error('Sync error:', e);
+                S.syncStatus = 'error';
+                toast('Sync error: ' + e.message, 'error');
+                render();
+            } finally {
+                S.isSyncingAll = false;
+            }
+        }
+
+        // ============================================================
+        // SYNC ORDERS FROM FIRESTORE
+        // ============================================================
+        async function syncOrdersFromFirestore() {
+            if (!firestore) return;
+            
+            try {
+                console.log('🔄 Syncing orders from Firebase...');
+                const snapshot = await firestore.collection('orders').get();
+                
+                if (snapshot.empty) {
+                    console.log('No orders in Firebase');
+                    return;
+                }
+                
+                let orderCount = 0;
+                let itemCount = 0;
+                
+                for (const doc of snapshot.docs) {
+                    const data = doc.data();
+                    const orderId = doc.id;
+                    
+                    // Check if order exists locally
+                    const existing = db.exec("SELECT order_id FROM orders WHERE order_id='" + esc(orderId) + "'");
+                    const exists = existing.length > 0;
+                    
+                    if (exists) {
+                        // Update existing order
+                        db.run(`UPDATE orders SET 
+                            sp_username='${esc(data.spUsername || '')}',
+                            sp_name='${esc(data.spName || '')}',
+                            shop_name='${esc(data.shopName || '')}',
+                            shop_phone='${esc(data.shopPhone || '')}',
+                            shop_location='${esc(data.shopLocation || '')}',
+                            shop_lat=${data.shopLat || 'NULL'},
+                            shop_lng=${data.shopLng || 'NULL'},
+                            subtotal=${data.subtotal || 0},
+                            discount=${data.discount || 0},
+                            total=${data.total || 0},
+                            load_weight=${data.loadWeight || 0},
+                            order_date='${esc(data.orderDate || today())}',
+                            status='${esc(data.status || 'open')}',
+                            bill_number=${data.billNumber || 'NULL'},
+                            created_at='${esc(data.createdAt || new Date().toISOString())}'
+                            WHERE order_id='${esc(orderId)}'`);
+                    } else {
+                        // Insert new order
+                        db.run(`INSERT INTO orders 
+                            (order_id, sp_username, sp_name, shop_name, shop_phone, shop_location, shop_lat, shop_lng, subtotal, discount, total, load_weight, order_date, status, bill_number, created_at)
+                            VALUES (
+                                '${esc(orderId)}',
+                                '${esc(data.spUsername || '')}',
+                                '${esc(data.spName || '')}',
+                                '${esc(data.shopName || '')}',
+                                '${esc(data.shopPhone || '')}',
+                                '${esc(data.shopLocation || '')}',
+                                ${data.shopLat || 'NULL'},
+                                ${data.shopLng || 'NULL'},
+                                ${data.subtotal || 0},
+                                ${data.discount || 0},
+                                ${data.total || 0},
+                                ${data.loadWeight || 0},
+                                '${esc(data.orderDate || today())}',
+                                '${esc(data.status || 'open')}',
+                                ${data.billNumber || 'NULL'},
+                                '${esc(data.createdAt || new Date().toISOString())}'
+                            )`);
+                    }
+                    orderCount++;
+                    
+                    // Sync order items
+                    const itemsSnapshot = await firestore.collection('order_items')
+                        .where('orderId', '==', orderId).get();
+                    
+                    // Delete existing items for this order
+                    db.run("DELETE FROM order_items WHERE order_id='" + esc(orderId) + "'");
+                    
+                    for (const itemDoc of itemsSnapshot.docs) {
+                        const itemData = itemDoc.data();
+                        db.run(`INSERT INTO order_items 
+                            (order_id, product_id, product_name, pack, cases, units_per_case, unit_price, line_total)
+                            VALUES (
+                                '${esc(orderId)}',
+                                ${itemData.productId || 0},
+                                '${esc(itemData.productName || '')}',
+                                '${esc(itemData.pack || '')}',
+                                ${itemData.cases || 0},
+                                ${itemData.unitsPerCase || 24},
+                                ${itemData.unitPrice || 'NULL'},
+                                ${itemData.lineTotal || 0}
+                            )`);
+                        itemCount++;
+                    }
+                }
+                
+                saveDB();
+                console.log(`✅ Synced ${orderCount} orders with ${itemCount} items from Firebase`);
+                toast(`📦 Synced ${orderCount} orders from cloud`, 'success');
+                
+            } catch (e) {
+                console.warn('⚠️ Firebase orders sync error:', e);
+                throw e;
+            }
+        }
+
+        // ============================================================
+        // SYNC PRODUCTS FROM FIRESTORE
+        // ============================================================
+        async function syncProductsFromFirestore() {
+            if (!firestore) return;
+            
+            try {
+                console.log('🔄 Syncing products from Firebase...');
+                const snapshot = await firestore.collection('products').get();
+                
+                if (snapshot.empty) {
+                    console.log('No products in Firebase');
+                    return;
+                }
+                
+                let productCount = 0;
+                
+                for (const doc of snapshot.docs) {
+                    const data = doc.data();
+                    const productId = parseInt(doc.id);
+                    
+                    if (isNaN(productId)) continue;
+                    
+                    const existing = db.exec("SELECT id FROM products WHERE id=" + productId);
+                    const exists = existing.length > 0;
+                    
+                    if (exists) {
+                        db.run(`UPDATE products SET 
+                            sku='${esc(data.sku || '')}',
+                            name='${esc(data.name || '')}',
+                            pack='${esc(data.pack || '')}',
+                            units=${data.units || 24},
+                            price=${data.price || 'NULL'},
+                            category='${esc(data.category || '')}',
+                            is_active=${data.isActive ? 1 : 0},
+                            updated_at='${esc(data.updatedAt || new Date().toISOString())}'
+                            WHERE id=${productId}`);
+                    } else {
+                        db.run(`INSERT INTO products 
+                            (id, sku, name, pack, units, price, category, is_active, created_at, updated_at)
+                            VALUES (
+                                ${productId},
+                                '${esc(data.sku || '')}',
+                                '${esc(data.name || '')}',
+                                '${esc(data.pack || '')}',
+                                ${data.units || 24},
+                                ${data.price || 'NULL'},
+                                '${esc(data.category || '')}',
+                                ${data.isActive ? 1 : 0},
+                                '${esc(data.createdAt || new Date().toISOString())}',
+                                '${esc(data.updatedAt || new Date().toISOString())}'
+                            )`);
+                    }
+                    productCount++;
+                }
+                
+                saveDB();
+                console.log(`✅ Synced ${productCount} products from Firebase`);
+                
+            } catch (e) {
+                console.warn('⚠️ Firebase products sync error:', e);
+                throw e;
+            }
+        }
+
+        // ============================================================
+        // SYNC ASSETS FROM FIRESTORE
+        // ============================================================
+        async function syncAssetsFromFirestore() {
+            if (!firestore) return;
+            
+            try {
+                console.log('🔄 Syncing assets from Firebase...');
+                const snapshot = await firestore.collection('assets').get();
+                
+                if (snapshot.empty) {
+                    console.log('No assets in Firebase');
+                    return;
+                }
+                
+                let assetCount = 0;
+                
+                for (const doc of snapshot.docs) {
+                    const data = doc.data();
+                    const assetId = parseInt(doc.id);
+                    
+                    if (isNaN(assetId)) continue;
+                    
+                    const existing = db.exec("SELECT id FROM assets WHERE id=" + assetId);
+                    const exists = existing.length > 0;
+                    
+                    if (exists) {
+                        db.run(`UPDATE assets SET 
+                            shop_name='${esc(data.shopName || '')}',
+                            shop_phone='${esc(data.shopPhone || '')}',
+                            shop_address='${esc(data.shopAddress || '')}',
+                            asset_number='${esc(data.assetNumber || '')}',
+                            photo='${esc(data.photo || '')}',
+                            notes='${esc(data.notes || '')}',
+                            created_by='${esc(data.createdBy || '')}',
+                            created_at='${esc(data.createdAt || new Date().toISOString())}'
+                            WHERE id=${assetId}`);
+                    } else {
+                        db.run(`INSERT INTO assets 
+                            (id, shop_name, shop_phone, shop_address, asset_number, photo, notes, created_by, created_at)
+                            VALUES (
+                                ${assetId},
+                                '${esc(data.shopName || '')}',
+                                '${esc(data.shopPhone || '')}',
+                                '${esc(data.shopAddress || '')}',
+                                '${esc(data.assetNumber || '')}',
+                                '${esc(data.photo || '')}',
+                                '${esc(data.notes || '')}',
+                                '${esc(data.createdBy || '')}',
+                                '${esc(data.createdAt || new Date().toISOString())}'
+                            )`);
+                    }
+                    assetCount++;
+                }
+                
+                saveDB();
+                console.log(`✅ Synced ${assetCount} assets from Firebase`);
+                
+            } catch (e) {
+                console.warn('⚠️ Firebase assets sync error:', e);
+                throw e;
+            }
         }
 
         // ============================================================
@@ -882,6 +1161,14 @@
             else if (S.role === 'ase') S.view = 'ase-dashboard';
             else S.adminView = 'dashboard';
             resetForm();
+            
+            // Auto-sync data from cloud on login
+            if (firestore) {
+                setTimeout(function() {
+                    syncAllFromFirestore();
+                }, 500);
+            }
+            
             toast('Welcome, ' + S.userName + '!');
             render();
         }
@@ -950,6 +1237,10 @@
             return statusMap[S.syncStatus] || statusMap['synced'];
         }
 
+        function getSyncButtonHtml() {
+            return '<button class="sync-btn" onclick="syncAllFromFirestore()" title="Sync all data from cloud"><i class="fa-solid fa-cloud-download-alt"></i>Sync</button>';
+        }
+
         // ============================================================
         // SALES APP
         // ============================================================
@@ -971,6 +1262,7 @@
             else { S.view = 'new-order'; content = renderNewOrder() }
 
             var syncStatusHtml = getSyncStatusHtml();
+            var syncButtonHtml = getSyncButtonHtml();
 
             var navHtml =
                 '<div class="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 bottom-nav z-50 no-print"><div class="max-w-lg mx-auto flex">' +
@@ -982,7 +1274,7 @@
                 '<div class="pb-20 min-h-screen bg-surface">' +
                 '<div class="bg-pri text-white px-4 py-3 flex items-center justify-between no-print sticky top-0 z-40">' +
                 '<div><h1 class="font-display font-bold text-sm">' + escH(S.userName) + '</h1><p class="text-pri-100 text-[10px]">Sales Person</p></div>' +
-                '<div class="flex items-center gap-2">' + syncStatusHtml +
+                '<div class="flex items-center gap-2">' + syncStatusHtml + syncButtonHtml +
                 '<button onclick="logout()" class="text-pri-100 hover:text-white text-xs flex items-center gap-1 touch-target"><i class="fa-solid fa-right-from-bracket"></i><span class="hidden sm:inline">Logout</span></button>' +
                 '</div></div>' +
                 '<div class="fade-in">' + content + '</div>' +
@@ -1077,7 +1369,7 @@
 
         function renderMyOrders() {
             var orders = db.exec("SELECT order_id,shop_name,shop_phone,shop_location,subtotal,discount,total,load_weight,order_date,status,created_at FROM orders WHERE sp_username='" + esc(S.user) + "' ORDER BY created_at DESC");
-            if (!orders.length || !orders[0].values.length) return '<div class="p-4 text-center text-gray-400 mt-16"><i class="fa-solid fa-inbox text-4xl mb-3"></i><p class="text-sm">No orders yet</p></div>';
+            if (!orders.length || !orders[0].values.length) return '<div class="p-4 text-center text-gray-400 mt-16"><i class="fa-solid fa-inbox text-4xl mb-3"></i><p class="text-sm">No orders yet</p><button onclick="syncAllFromFirestore()" class="mt-3 text-xs text-pri underline">Sync from cloud</button></div>';
             var cards = orders[0].values.map(function(o) {
                 var statusClr = o[9] === 'closed' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700';
                 var statusTxt = o[9] === 'closed' ? 'Delivered' : 'Open';
@@ -1172,6 +1464,7 @@
             else { S.view = 'ase-dashboard'; content = renderASEDashboard() }
 
             var syncStatusHtml = getSyncStatusHtml();
+            var syncButtonHtml = getSyncButtonHtml();
 
             var navHtml =
                 '<div class="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 bottom-nav z-50 no-print"><div class="max-w-lg mx-auto flex">' +
@@ -1184,7 +1477,7 @@
             var header =
                 '<div class="bg-pri text-white px-4 py-3 flex items-center justify-between no-print sticky top-0 z-40">' +
                 '<div><h1 class="font-display font-bold text-sm">' + escH(S.userName) + '</h1><p class="text-pri-100 text-[10px]">Area Sales Executive</p></div>' +
-                '<div class="flex items-center gap-2">' + syncStatusHtml +
+                '<div class="flex items-center gap-2">' + syncStatusHtml + syncButtonHtml +
                 '<button onclick="logout()" class="text-pri-100 hover:text-white text-xs flex items-center gap-1 touch-target"><i class="fa-solid fa-right-from-bracket"></i><span class="hidden sm:inline">Logout</span></button>' +
                 '</div></div>';
 
@@ -1321,6 +1614,7 @@
             else { S.adminView = 'dashboard'; content = renderAdminDashboard() }
 
             var syncStatusHtml = getSyncStatusHtml();
+            var syncButtonHtml = getSyncButtonHtml();
 
             var sideItems = [
                 { id: 'dashboard', icon: 'fa-chart-pie', label: 'Dashboard' },
@@ -1345,7 +1639,9 @@
                     sidebar += '<div class="sidebar-item flex items-center gap-3 px-4 py-2.5 mx-2 rounded-lg text-sm ' + (isActive ? 'active' : 'text-gray-600') + '" onclick="S.adminView=\'' + si.id + '\';S.moreMenuOpen=false;render();"><i class="fa-solid ' + si.icon + '"></i>' + si.label + '</div>';
                 }
             });
-            sidebar += '</div><div class="p-3 border-t border-gray-100"><button onclick="logout()" class="w-full text-xs py-2 rounded-lg bg-gray-50 text-gray-500 hover:bg-red-50 hover:text-red-600 btn-press touch-target"><i class="fa-solid fa-right-from-bracket mr-1"></i>Logout</button></div></nav>';
+            sidebar += '</div><div class="p-3 border-t border-gray-100 flex flex-col gap-2">' +
+                '<div class="flex items-center justify-between text-xs">' + syncStatusHtml + syncButtonHtml + '</div>' +
+                '<button onclick="logout()" class="w-full text-xs py-2 rounded-lg bg-gray-50 text-gray-500 hover:bg-red-50 hover:text-red-600 btn-press touch-target"><i class="fa-solid fa-right-from-bracket mr-1"></i>Logout</button></div></nav>';
 
             var mobileTabs = [
                 { id: 'dashboard', icon: 'fa-chart-pie', label: 'Dashboard' },
@@ -1376,11 +1672,11 @@
 
             var mobileHeader = '<div class="md:hidden bg-pri text-white px-4 py-3 flex items-center justify-between sticky top-0 z-40 no-print">' +
                 '<div><h1 class="font-display font-bold text-sm">' + escH(getFirm().name) + '</h1><p class="text-pri-100 text-[10px]">' + escH(S.userName) + ' (' + S.role + ')</p></div>' +
-                '<div class="flex items-center gap-2">' + syncStatusHtml +
+                '<div class="flex items-center gap-2">' + syncStatusHtml + syncButtonHtml +
                 '<button onclick="logout()" class="text-pri-100 hover:text-white text-xs touch-target p-2"><i class="fa-solid fa-right-from-bracket"></i></button></div></div>';
 
             var viewLabel = { dashboard: 'Dashboard', orders: 'Orders', 'load-sheet': 'Load Sheets', reports: 'Reports', products: 'Products', users: 'Users', assets: 'Assets', settings: 'Settings' };
-            var breadcrumb = '<div class="hidden md:block px-6 py-3 bg-white border-b border-gray-100 no-print"><div class="flex items-center justify-between"><div class="text-xs text-gray-400">Admin / <span class="text-gray-700 font-medium">' + (viewLabel[S.adminView] || '') + '</span></div>' + syncStatusHtml + '</div></div>';
+            var breadcrumb = '<div class="hidden md:block px-6 py-3 bg-white border-b border-gray-100 no-print"><div class="flex items-center justify-between"><div class="text-xs text-gray-400">Admin / <span class="text-gray-700 font-medium">' + (viewLabel[S.adminView] || '') + '</span></div>' + syncStatusHtml + syncButtonHtml + '</div></div>';
 
             var downloadBtn = '<div class="px-4 py-2 bg-white border-b border-gray-100 no-print flex justify-end">' +
                 '<button onclick="downloadAllOrders()" class="download-btn bg-pri text-white text-xs px-4 py-2 rounded-xl font-semibold flex items-center gap-2 shadow-md hover:bg-pri-dark transition"><i class="fa-solid fa-download"></i> Download All Orders</button></div>';
@@ -2026,7 +2322,8 @@
                     var batch = firestore.batch();
                     snapshot.forEach(doc => batch.delete(doc.ref));
                     await batch.commit();
-                    items.forEach(async function(item) {
+                    for (var i = 0; i < items.length; i++) {
+                        var item = items[i];
                         await firestore.collection('order_items').add({
                             orderId: oid,
                             productName: item.name,
@@ -2036,7 +2333,7 @@
                             unitPrice: item.price,
                             lineTotal: item.total
                         });
-                    });
+                    }
                 }
                 console.log('✅ Synced order:', oid);
             } catch (e) {
@@ -2483,6 +2780,10 @@
                 try {
                     if (firestore) {
                         console.log('✅ Firebase Firestore is connected');
+                        // Auto-sync data from cloud after DB is ready
+                        setTimeout(function() {
+                            syncAllFromFirestore();
+                        }, 1000);
                     }
                 } catch (e) {
                     console.warn('⚠️ Firebase connection issue:', e);

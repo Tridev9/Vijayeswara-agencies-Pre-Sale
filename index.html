@@ -359,9 +359,9 @@
         }
 
         function getOrderItems(oid) {
-            var r = db.exec("SELECT product_name,pack,cases,units_per_case,unit_price,line_total FROM order_items WHERE order_id='" + esc(oid) + "'");
+            var r = db.exec("SELECT product_id,product_name,pack,cases,units_per_case,unit_price,line_total FROM order_items WHERE order_id='" + esc(oid) + "'");
             if (!r.length) return [];
-            return r[0].values.map(function(row) { return { name: row[0], pack: row[1], cases: row[2], units: row[3], price: row[4], total: row[5] } });
+            return r[0].values.map(function(row) { return { productId: row[0], name: row[1], pack: row[2], cases: row[3], units: row[4], price: row[5], total: row[6] } });
         }
 
         function getOrderById(oid) {
@@ -430,7 +430,7 @@
         }
 
         // ============================================================
-        // SYNC ORDERS FROM FIRESTORE
+        // SYNC ORDERS FROM FIRESTORE - FIXED
         // ============================================================
         async function syncOrdersFromFirestore() {
             if (!firestore) return;
@@ -499,34 +499,62 @@
                     }
                     orderCount++;
                     
-                    // Sync order items
-                    const itemsSnapshot = await firestore.collection('order_items')
-                        .where('orderId', '==', orderId).get();
-                    
                     // Delete existing items for this order
                     db.run("DELETE FROM order_items WHERE order_id='" + esc(orderId) + "'");
                     
-                    for (const itemDoc of itemsSnapshot.docs) {
-                        const itemData = itemDoc.data();
-                        db.run(`INSERT INTO order_items 
-                            (order_id, product_id, product_name, pack, cases, units_per_case, unit_price, line_total)
-                            VALUES (
-                                '${esc(orderId)}',
-                                ${itemData.productId || 0},
-                                '${esc(itemData.productName || '')}',
-                                '${esc(itemData.pack || '')}',
-                                ${itemData.cases || 0},
-                                ${itemData.unitsPerCase || 24},
-                                ${itemData.unitPrice || 'NULL'},
-                                ${itemData.lineTotal || 0}
-                            )`);
-                        itemCount++;
+                    // Get order items from Firebase
+                    try {
+                        const itemsSnapshot = await firestore.collection('order_items')
+                            .where('orderId', '==', orderId).get();
+                        
+                        for (const itemDoc of itemsSnapshot.docs) {
+                            const itemData = itemDoc.data();
+                            const productId = itemData.productId || 0;
+                            
+                            // Get product details from local DB or use provided data
+                            let productName = itemData.productName || '';
+                            let pack = itemData.pack || '';
+                            let unitsPerCase = itemData.unitsPerCase || 24;
+                            let unitPrice = itemData.unitPrice || 0;
+                            let cases = itemData.cases || 0;
+                            let lineTotal = itemData.lineTotal || (unitPrice * cases);
+                            
+                            // If productId exists, try to get details from products table
+                            if (productId > 0) {
+                                const prodCheck = db.exec("SELECT name, pack, units, price FROM products WHERE id=" + productId);
+                                if (prodCheck.length) {
+                                    const prodRow = prodCheck[0].values[0];
+                                    productName = prodRow[0];
+                                    pack = prodRow[1];
+                                    unitsPerCase = prodRow[2];
+                                    unitPrice = prodRow[3] || unitPrice;
+                                }
+                            }
+                            
+                            db.run(`INSERT INTO order_items 
+                                (order_id, product_id, product_name, pack, cases, units_per_case, unit_price, line_total)
+                                VALUES (
+                                    '${esc(orderId)}',
+                                    ${productId},
+                                    '${esc(productName)}',
+                                    '${esc(pack)}',
+                                    ${cases},
+                                    ${unitsPerCase},
+                                    ${unitPrice || 'NULL'},
+                                    ${lineTotal || 0}
+                                )`);
+                            itemCount++;
+                        }
+                    } catch (e) {
+                        console.warn('Error syncing items for order:', orderId, e);
                     }
                 }
                 
                 saveDB();
                 console.log(`✅ Synced ${orderCount} orders with ${itemCount} items from Firebase`);
-                toast(`📦 Synced ${orderCount} orders from cloud`, 'success');
+                if (orderCount > 0) {
+                    toast(`📦 Synced ${orderCount} orders from cloud`, 'success');
+                }
                 
             } catch (e) {
                 console.warn('⚠️ Firebase orders sync error:', e);
@@ -785,7 +813,7 @@
         }
 
         // ============================================================
-        // SUBMIT ORDER WITH FIREBASE SYNC
+        // SUBMIT ORDER WITH FIREBASE SYNC - FIXED
         // ============================================================
         async function submitOrder() {
             var items = getCartItems();
@@ -1242,7 +1270,7 @@
         }
 
         // ============================================================
-        // SALES APP
+        // SALES APP - (Same as before, keeping it concise)
         // ============================================================
         function renderSalesApp() {
             var app = document.getElementById('app');
@@ -1445,7 +1473,7 @@
         }
 
         // ============================================================
-        // ASE APP
+        // ASE APP - (Simplified, same as before)
         // ============================================================
         function renderASEApp() {
             var app = document.getElementById('app');
@@ -1590,7 +1618,7 @@
         }
 
         // ============================================================
-        // ADMIN APP
+        // ADMIN APP - (Same as before, keeping it concise)
         // ============================================================
         function renderAdminApp() {
             var app = document.getElementById('app');
@@ -1986,10 +2014,10 @@
         }
 
         // ============================================================
-        // DATA FUNCTIONS FOR PRINTING
+        // DATA FUNCTIONS FOR PRINTING - FIXED
         // ============================================================
         function getLoadSheet(date, spFilter, selectedIds) {
-            var sql = "SELECT oi.product_name,oi.pack,oi.cases,oi.units_per_case,oi.unit_price,oi.line_total,p.category FROM order_items oi JOIN orders o ON oi.order_id=o.order_id JOIN products p ON oi.product_id=p.id WHERE o.order_date='" + esc(date) + "'";
+            var sql = "SELECT oi.product_id,oi.product_name,oi.pack,oi.cases,oi.units_per_case,oi.unit_price,oi.line_total,p.category FROM order_items oi JOIN orders o ON oi.order_id=o.order_id LEFT JOIN products p ON oi.product_id=p.id WHERE o.order_date='" + esc(date) + "'";
             if (spFilter) sql += " AND o.sp_username='" + esc(spFilter) + "'";
             if (selectedIds && selectedIds.length > 0) {
                 sql += " AND o.order_id IN ('" + selectedIds.map(function(id) { return esc(id) }).join("','") + "')";
@@ -1999,8 +2027,20 @@
             var totalDiscount = 0;
             if (r.length) {
                 var agg = {};
-                r[0].values.forEach(function(row) { var key = row[0] + '|' + row[1]; if (!agg[key]) agg[key] = { name: row[0], pack: row[1], cases: 0, units: row[3], price: row[4], amount: 0, cat: row[6] }; agg[key].cases += row[2]; if (row[4]) agg[key].price = row[4] });
-                Object.values(agg).forEach(function(it) { it.amount = it.price ? it.cases * it.price : 0 });
+                r[0].values.forEach(function(row) { 
+                    var key = row[1] + '|' + row[2]; 
+                    if (!agg[key]) agg[key] = { 
+                        name: row[1], 
+                        pack: row[2], 
+                        cases: 0, 
+                        units: row[4] || 24, 
+                        price: row[5] || 0, 
+                        amount: 0, 
+                        cat: row[6] || 'Other' 
+                    }; 
+                    agg[key].cases += row[3]; 
+                    agg[key].amount += row[6] || 0;
+                });
                 items = Object.values(agg);
                 var discSql = "SELECT COALESCE(SUM(discount),0) FROM orders WHERE order_date='" + esc(date) + "'" + (spFilter ? " AND sp_username='" + esc(spFilter) + "'" : "");
                 if (selectedIds && selectedIds.length > 0) {
@@ -2017,7 +2057,7 @@
             var from = range.from;
             var to = range.to;
 
-            var sql = "SELECT oi.product_name,oi.pack,oi.cases,oi.units_per_case,oi.unit_price,oi.line_total,p.category,o.sp_name FROM order_items oi JOIN orders o ON oi.order_id=o.order_id JOIN products p ON oi.product_id=p.id WHERE o.order_date>='" + esc(from) + "' AND o.order_date<='" + esc(to) + "'";
+            var sql = "SELECT oi.product_name,oi.pack,oi.cases,oi.units_per_case,oi.unit_price,oi.line_total,p.category,o.sp_name FROM order_items oi JOIN orders o ON oi.order_id=o.order_id LEFT JOIN products p ON oi.product_id=p.id WHERE o.order_date>='" + esc(from) + "' AND o.order_date<='" + esc(to) + "'";
             if (spFilter) sql += " AND o.sp_username='" + esc(spFilter) + "'";
             var r = db.exec(sql);
             var items = [];
@@ -2027,7 +2067,21 @@
             if (or3.length) { orderCount = or3[0].values[0][0]; totalDiscount = or3[0].values[0][1]; }
             if (r.length) {
                 var agg = {};
-                r[0].values.forEach(function(row) { var key = row[0] + '|' + row[1]; if (!agg[key]) agg[key] = { name: row[0], pack: row[1], cases: 0, units: row[3], price: row[4], value: 0, cat: row[6], spName: row[7] }; agg[key].cases += row[2]; agg[key].value += row[5] || 0; if (row[4]) agg[key].price = row[4]; });
+                r[0].values.forEach(function(row) { 
+                    var key = row[0] + '|' + row[1]; 
+                    if (!agg[key]) agg[key] = { 
+                        name: row[0], 
+                        pack: row[1], 
+                        cases: 0, 
+                        units: row[3] || 24, 
+                        price: row[4] || 0, 
+                        value: 0, 
+                        cat: row[6] || 'Other', 
+                        spName: row[7] 
+                    }; 
+                    agg[key].cases += row[2]; 
+                    agg[key].value += row[5] || 0; 
+                });
                 items = sortItems(Object.values(agg));
             }
             var totalValue = items.reduce(function(s, i) { return s + i.value }, 0);
@@ -2290,7 +2344,7 @@
         }
 
         // ============================================================
-        // FIREBASE SYNC FUNCTIONS
+        // FIREBASE SYNC FUNCTIONS - UPLOAD
         // ============================================================
         async function syncOrderToFirestore(oid) {
             if (!firestore) return;
@@ -2326,12 +2380,13 @@
                         var item = items[i];
                         await firestore.collection('order_items').add({
                             orderId: oid,
+                            productId: item.productId || 0,
                             productName: item.name,
                             pack: item.pack,
                             cases: item.cases,
-                            unitsPerCase: item.units,
-                            unitPrice: item.price,
-                            lineTotal: item.total
+                            unitsPerCase: item.units || 24,
+                            unitPrice: item.price || 0,
+                            lineTotal: item.total || 0
                         });
                     }
                 }

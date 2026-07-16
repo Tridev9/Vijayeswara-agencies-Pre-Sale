@@ -430,7 +430,7 @@
         }
 
         // ============================================================
-        // SYNC ORDERS FROM FIRESTORE - FIXED
+        // SYNC ORDERS FROM FIRESTORE
         // ============================================================
         async function syncOrdersFromFirestore() {
             if (!firestore) return;
@@ -451,12 +451,10 @@
                     const data = doc.data();
                     const orderId = doc.id;
                     
-                    // Check if order exists locally
                     const existing = db.exec("SELECT order_id FROM orders WHERE order_id='" + esc(orderId) + "'");
                     const exists = existing.length > 0;
                     
                     if (exists) {
-                        // Update existing order
                         db.run(`UPDATE orders SET 
                             sp_username='${esc(data.spUsername || '')}',
                             sp_name='${esc(data.spName || '')}',
@@ -475,7 +473,6 @@
                             created_at='${esc(data.createdAt || new Date().toISOString())}'
                             WHERE order_id='${esc(orderId)}'`);
                     } else {
-                        // Insert new order
                         db.run(`INSERT INTO orders 
                             (order_id, sp_username, sp_name, shop_name, shop_phone, shop_location, shop_lat, shop_lng, subtotal, discount, total, load_weight, order_date, status, bill_number, created_at)
                             VALUES (
@@ -499,10 +496,8 @@
                     }
                     orderCount++;
                     
-                    // Delete existing items for this order
                     db.run("DELETE FROM order_items WHERE order_id='" + esc(orderId) + "'");
                     
-                    // Get order items from Firebase
                     try {
                         const itemsSnapshot = await firestore.collection('order_items')
                             .where('orderId', '==', orderId).get();
@@ -511,7 +506,6 @@
                             const itemData = itemDoc.data();
                             const productId = itemData.productId || 0;
                             
-                            // Get product details from local DB or use provided data
                             let productName = itemData.productName || '';
                             let pack = itemData.pack || '';
                             let unitsPerCase = itemData.unitsPerCase || 24;
@@ -519,7 +513,6 @@
                             let cases = itemData.cases || 0;
                             let lineTotal = itemData.lineTotal || (unitPrice * cases);
                             
-                            // If productId exists, try to get details from products table
                             if (productId > 0) {
                                 const prodCheck = db.exec("SELECT name, pack, units, price FROM products WHERE id=" + productId);
                                 if (prodCheck.length) {
@@ -813,7 +806,7 @@
         }
 
         // ============================================================
-        // SUBMIT ORDER WITH FIREBASE SYNC - FIXED
+        // SUBMIT ORDER WITH FIREBASE SYNC
         // ============================================================
         async function submitOrder() {
             var items = getCartItems();
@@ -1190,7 +1183,6 @@
             else S.adminView = 'dashboard';
             resetForm();
             
-            // Auto-sync data from cloud on login
             if (firestore) {
                 setTimeout(function() {
                     syncAllFromFirestore();
@@ -1270,7 +1262,7 @@
         }
 
         // ============================================================
-        // SALES APP - (Same as before, keeping it concise)
+        // SALES APP
         // ============================================================
         function renderSalesApp() {
             var app = document.getElementById('app');
@@ -1473,7 +1465,7 @@
         }
 
         // ============================================================
-        // ASE APP - (Simplified, same as before)
+        // ASE APP
         // ============================================================
         function renderASEApp() {
             var app = document.getElementById('app');
@@ -1618,7 +1610,7 @@
         }
 
         // ============================================================
-        // ADMIN APP - (Same as before, keeping it concise)
+        // ADMIN APP
         // ============================================================
         function renderAdminApp() {
             var app = document.getElementById('app');
@@ -2014,7 +2006,7 @@
         }
 
         // ============================================================
-        // DATA FUNCTIONS FOR PRINTING - FIXED
+        // DATA FUNCTIONS FOR PRINTING
         // ============================================================
         function getLoadSheet(date, spFilter, selectedIds) {
             var sql = "SELECT oi.product_id,oi.product_name,oi.pack,oi.cases,oi.units_per_case,oi.unit_price,oi.line_total,p.category FROM order_items oi JOIN orders o ON oi.order_id=o.order_id LEFT JOIN products p ON oi.product_id=p.id WHERE o.order_date='" + esc(date) + "'";
@@ -2573,7 +2565,6 @@
                     '</div></div></div>';
             }
 
-            // User Modal with Firebase sync
             if (S.userModal) {
                 var u = S.editingUser || { username: '', password: '', name: '', role: 'sales', area: '' };
                 var isEditing = S.editingUser !== null;
@@ -2714,7 +2705,6 @@
                 try { db.run("ALTER TABLE orders ADD COLUMN status TEXT DEFAULT 'open'") } catch (e) {}
                 try { db.run("ALTER TABLE orders ADD COLUMN bill_number INTEGER") } catch (e) {}
 
-                // Try to load users from Firebase first
                 if (firestore) {
                     try {
                         await loadUsersFromFirestore();
@@ -2731,14 +2721,12 @@
                     db.run("INSERT INTO users (username,password,name,role,area) VALUES ('suresh','sur123','Suresh Yadav','sales','Zone B - North')");
                     db.run("INSERT INTO users (username,password,name,role,area) VALUES ('mahesh','mah123','Mahesh Patil','sales','Zone C - South')");
                     
-                    // Sync initial users to Firebase
                     await syncUsersToFirestore();
                 } else {
                     var adminCheck = db.exec("SELECT id FROM users WHERE username='admin'");
                     if (!adminCheck.length) {
                         db.run("INSERT INTO users (username,password,name,role,area) VALUES ('admin','admin123','Administrator','admin','All')");
                     }
-                    // Ensure users are synced to Firebase
                     if (firestore) {
                         await syncUsersToFirestore();
                     }
@@ -2835,7 +2823,6 @@
                 try {
                     if (firestore) {
                         console.log('✅ Firebase Firestore is connected');
-                        // Auto-sync data from cloud after DB is ready
                         setTimeout(function() {
                             syncAllFromFirestore();
                         }, 1000);

@@ -165,19 +165,14 @@
         // ============================================================
         // PICDB CONFIGURATION
         // ============================================================
-        // PicDB is a free image hosting service
-        // No API key required - just upload and get URL
         const PICDB_UPLOAD_URL = 'https://picdb.vercel.app/api/upload';
         
         async function uploadToPicDB(file) {
             try {
-                // Compress image before upload
                 const compressedFile = await compressImage(file);
-                
                 const formData = new FormData();
                 formData.append('image', compressedFile);
                 
-                // Upload to PicDB
                 const response = await fetch(PICDB_UPLOAD_URL, {
                     method: 'POST',
                     body: formData
@@ -188,9 +183,6 @@
                 }
                 
                 const data = await response.json();
-                
-                // PicDB returns the image URL in the response
-                // The URL format is: https://picdb.vercel.app/images/{id}.jpg
                 return data.url || data.imageUrl || data.data?.url;
             } catch (error) {
                 console.error('PicDB upload error:', error);
@@ -536,14 +528,11 @@
                 var assetId;
                 var photoURL = S.assetPhoto || '';
                 
-                // Upload new photo to PicDB if there's a new file
                 if (S.assetFile) {
                     try {
-                        // Show uploading progress
                         S.uploadProgress = 10;
                         render();
                         
-                        // Upload to PicDB
                         photoURL = await uploadToPicDB(S.assetFile);
                         S.assetPhotoPreview = photoURL;
                         
@@ -552,14 +541,12 @@
                     } catch (e) {
                         console.error('PicDB upload error:', e);
                         toast('Photo upload failed: ' + e.message, 'error');
-                        // Continue with asset creation even if photo upload fails
                         photoURL = S.assetPhoto || '';
                     }
                 }
                 
                 render();
                 
-                // Save to SQLite
                 if (S.editingAsset) {
                     db.run("UPDATE assets SET shop_name='" + esc(shopName) + "',shop_phone='" + esc(shopPhone) + "',shop_address='" + esc(shopAddress) + "',asset_number='" + esc(assetNumber) + "',photo='" + esc(photoURL) + "',notes='" + esc(notes) + "' WHERE id=" + S.editingAsset.id);
                     assetId = S.editingAsset.id;
@@ -569,7 +556,6 @@
                 }
                 saveDB();
 
-                // Sync to Firestore with photo URL
                 if (firestore) {
                     await firestore.collection('assets').doc(String(assetId)).set({
                         id: assetId,
@@ -615,10 +601,6 @@
             
             try {
                 var asset = getAssetById(id);
-                
-                // PicDB images are automatically deleted when not accessed
-                // No manual deletion needed
-                
                 db.run("DELETE FROM assets WHERE id=" + id);
                 saveDB();
 
@@ -679,6 +661,68 @@
                 toast('Error: ' + e.message, 'error');
                 render();
             }
+        }
+
+        // ============================================================
+        // USER MANAGEMENT - FIXED
+        // ============================================================
+        function saveUser() {
+            var username = document.getElementById('usr-name').value.trim().toLowerCase();
+            var password = document.getElementById('usr-pass').value;
+            var fullname = document.getElementById('usr-full').value.trim();
+            var role = document.getElementById('usr-role').value;
+            var area = document.getElementById('usr-area').value.trim();
+            
+            if (!username) { toast('Username is required', 'error'); return }
+            if (!password) { toast('Password is required', 'error'); return }
+            if (!fullname) { toast('Full name is required', 'error'); return }
+            if (!role) { toast('Role is required', 'error'); return }
+            
+            if (password.length < 4) { 
+                toast('Password must be at least 4 characters', 'error'); 
+                return 
+            }
+            
+            try {
+                if (S.editingUser) {
+                    var updatePassword = password;
+                    if (password === '') {
+                        var oldUser = db.exec("SELECT password FROM users WHERE id=" + S.editingUser.id);
+                        if (oldUser.length) {
+                            updatePassword = oldUser[0].values[0][0];
+                        }
+                    }
+                    
+                    db.run("UPDATE users SET username='" + esc(username) + "',password='" + esc(updatePassword) + "',name='" + esc(fullname) + "',role='" + esc(role) + "',area='" + esc(area) + "' WHERE id=" + S.editingUser.id);
+                    toast('✅ User updated!');
+                } else {
+                    var exist = db.exec("SELECT id FROM users WHERE username='" + esc(username) + "'");
+                    if (exist.length) { 
+                        toast('Username "' + username + '" already taken!', 'error'); 
+                        return 
+                    }
+                    
+                    db.run("INSERT INTO users (username,password,name,role,area) VALUES ('" + esc(username) + "','" + esc(password) + "','" + esc(fullname) + "','" + esc(role) + "','" + esc(area) + "')");
+                    toast('✅ User created! Username: ' + username + ', Password: ' + password);
+                    console.log('New user created:', { username, password, fullname, role, area });
+                }
+                saveDB();
+                S.userModal = null;
+                S.editingUser = null;
+                render();
+            } catch (e) { 
+                console.error('Save user error:', e);
+                toast('Error: ' + e.message, 'error');
+            }
+        }
+
+        function toggleUserActive(id, active) {
+            var r = db.exec("SELECT username FROM users WHERE id=" + id);
+            if (r.length && r[0].values[0][0] === S.user) { toast('Cannot disable your own account', 'error'); return }
+            db.run("UPDATE users SET is_active=" + (active ? 1 : 0) + " WHERE id=" + id);
+            saveDB();
+            toast(active ? 'User activated' : 'User deactivated', 'info');
+            render()
         }
 
         // ============================================================
@@ -1099,7 +1143,7 @@
         }
 
         // ============================================================
-        // ADMIN APP (Shortened - same as before with PicDB support)
+        // ADMIN APP
         // ============================================================
         function renderAdminApp() {
             var app = document.getElementById('app');
@@ -1465,15 +1509,6 @@
             return Object.keys(S.loadSelection).filter(function(k) { return S.loadSelection[k] });
         }
 
-        function toggleUserActive(id, active) {
-            var r = db.exec("SELECT username FROM users WHERE id=" + id);
-            if (r.length && r[0].values[0][0] === S.user) { toast('Cannot disable your own account', 'error'); return }
-            db.run("UPDATE users SET is_active=" + (active ? 1 : 0) + " WHERE id=" + id);
-            saveDB();
-            toast(active ? 'User activated' : 'User deactivated', 'info');
-            render()
-        }
-
         function toggleProductActive(id, active) {
             db.run("UPDATE products SET is_active=" + (active ? 1 : 0) + ",updated_at=datetime('now','localtime') WHERE id=" + id);
             saveDB();
@@ -1488,31 +1523,6 @@
             saveDB();
             toast('Product deleted', 'info');
             render()
-        }
-
-        function saveUser() {
-            var username = document.getElementById('usr-name').value.trim().toLowerCase();
-            var password = document.getElementById('usr-pass').value;
-            var fullname = document.getElementById('usr-full').value.trim();
-            var role = document.getElementById('usr-role').value;
-            var area = document.getElementById('usr-area').value.trim();
-            if (!username || !password || !fullname || !role) { toast('Fill all required fields', 'error'); return }
-            if (password.length < 4) { toast('Password must be at least 4 characters', 'error'); return }
-            try {
-                if (S.editingUser) {
-                    db.run("UPDATE users SET username='" + esc(username) + "',password='" + esc(password) + "',name='" + esc(fullname) + "',role='" + esc(role) + "',area='" + esc(area) + "' WHERE id=" + S.editingUser.id);
-                    toast('User updated!');
-                } else {
-                    var exist = db.exec("SELECT id FROM users WHERE username='" + esc(username) + "'");
-                    if (exist.length) { toast('Username already taken', 'error'); return }
-                    db.run("INSERT INTO users (username,password,name,role,area) VALUES ('" + esc(username) + "','" + esc(password) + "','" + esc(fullname) + "','" + esc(role) + "','" + esc(area) + "')");
-                    toast('User created!')
-                }
-                saveDB();
-                S.userModal = null;
-                S.editingUser = null;
-                render();
-            } catch (e) { toast('Error: ' + e.message, 'error') }
         }
 
         function saveSettings() {
@@ -2056,17 +2066,22 @@
                     '</div></div></div>';
             }
 
+            // FIXED: User Modal with better password handling
             if (S.userModal) {
                 var u = S.editingUser || { username: '', password: '', name: '', role: 'sales', area: '' };
+                var isEditing = S.editingUser !== null;
+                
                 html += '<div class="fixed inset-0 z-[100] flex items-end sm:items-center justify-center" onclick="if(event.target===this){S.userModal=null;S.editingUser=null;render();}"><div class="absolute inset-0 overlay"></div>' +
                     '<div class="relative bg-white rounded-t-2xl sm:rounded-2xl w-full sm:max-w-md max-h-[85vh] overflow-y-auto modal-enter">' +
-                    '<div class="sticky top-0 bg-white px-4 py-3 border-b border-gray-100 flex items-center justify-between rounded-t-2xl z-10"><h3 class="font-display font-bold text-sm">' + (S.editingUser ? 'Edit User' : 'Add User') + '</h3><button onclick="S.userModal=null;S.editingUser=null;render();" class="text-gray-400 hover:text-gray-600 touch-target p-1"><i class="fa-solid fa-xmark"></i></button></div>' +
+                    '<div class="sticky top-0 bg-white px-4 py-3 border-b border-gray-100 flex items-center justify-between rounded-t-2xl z-10"><h3 class="font-display font-bold text-sm">' + (isEditing ? 'Edit User' : 'Add User') + '</h3><button onclick="S.userModal=null;S.editingUser=null;render();" class="text-gray-400 hover:text-gray-600 touch-target p-1"><i class="fa-solid fa-xmark"></i></button></div>' +
                     '<div class="p-4 space-y-3">' +
-                    '<div><label class="text-xs font-semibold text-gray-500">Username *</label><input id="usr-name" type="text" value="' + escH(u.username) + '" class="w-full mt-1 px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-pri"></div>' +
-                    '<div><label class="text-xs font-semibold text-gray-500">Password *</label><input id="usr-pass" type="password" value="' + escH(u.password) + '" class="w-full mt-1 px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-pri"></div>' +
-                    '<div><label class="text-xs font-semibold text-gray-500">Full Name *</label><input id="usr-full" type="text" value="' + escH(u.name) + '" class="w-full mt-1 px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-pri"></div>' +
-                    '<div class="grid grid-cols-2 gap-3"><div><label class="text-xs font-semibold text-gray-500">Role *</label><select id="usr-role" class="w-full mt-1 px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-pri"><option value="sales" ' + (u.role === 'sales' ? 'selected' : '') + '>Sales</option><option value="ase" ' + (u.role === 'ase' ? 'selected' : '') + '>ASE</option><option value="admin" ' + (u.role === 'admin' ? 'selected' : '') + '>Admin</option></select></div><div><label class="text-xs font-semibold text-gray-500">Area</label><input id="usr-area" type="text" value="' + escH(u.area || '') + '" class="w-full mt-1 px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-pri"></div></div>' +
-                    '<button onclick="saveUser()" class="w-full py-3 rounded-xl bg-pri text-white font-semibold text-sm btn-press touch-target">' + (S.editingUser ? 'Update User' : 'Create User') + '</button>' +
+                    '<div><label class="text-xs font-semibold text-gray-500">Username *</label><input id="usr-name" type="text" value="' + escH(u.username) + '" class="w-full mt-1 px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-pri" placeholder="Enter username"></div>' +
+                    '<div><label class="text-xs font-semibold text-gray-500">Password *</label><input id="usr-pass" type="text" value="' + escH(u.password) + '" class="w-full mt-1 px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-pri" placeholder="Enter password (min 4 chars)">' +
+                    (isEditing ? '<p class="text-[10px] text-gray-400 mt-1">Leave blank to keep current password</p>' : '') +
+                    '</div>' +
+                    '<div><label class="text-xs font-semibold text-gray-500">Full Name *</label><input id="usr-full" type="text" value="' + escH(u.name) + '" class="w-full mt-1 px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-pri" placeholder="Enter full name"></div>' +
+                    '<div class="grid grid-cols-2 gap-3"><div><label class="text-xs font-semibold text-gray-500">Role *</label><select id="usr-role" class="w-full mt-1 px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-pri"><option value="sales" ' + (u.role === 'sales' ? 'selected' : '') + '>Sales</option><option value="ase" ' + (u.role === 'ase' ? 'selected' : '') + '>ASE</option><option value="admin" ' + (u.role === 'admin' ? 'selected' : '') + '>Admin</option></select></div><div><label class="text-xs font-semibold text-gray-500">Area</label><input id="usr-area" type="text" value="' + escH(u.area || '') + '" class="w-full mt-1 px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-pri" placeholder="Enter area"></div></div>' +
+                    '<button onclick="saveUser()" class="w-full py-3 rounded-xl bg-pri text-white font-semibold text-sm btn-press touch-target">' + (isEditing ? 'Update User' : 'Create User') + '</button>' +
                     '</div></div></div>';
             }
 
@@ -2121,13 +2136,26 @@
             var file = input.files[0];
             if (!file) return;
             
-            // Store the file for later upload
+            // Validate file type
+            var validTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+            if (!validTypes.includes(file.type)) {
+                toast('Please upload JPEG, PNG, WEBP, or GIF images only', 'error');
+                input.value = '';
+                return;
+            }
+            
+            // Validate file size (max 5MB)
+            if (file.size > 5 * 1024 * 1024) {
+                toast('Image too large. Max 5MB allowed.', 'error');
+                input.value = '';
+                return;
+            }
+            
             S.assetFile = file;
             
-            // Show preview
             var reader = new FileReader();
             reader.onload = function(e) { 
-                S.assetPhoto = e.target.result;  // Keep as backup
+                S.assetPhoto = e.target.result;
                 S.assetPhotoPreview = e.target.result; 
                 render() 
             };
@@ -2188,6 +2216,11 @@
                     db.run("INSERT INTO users (username,password,name,role,area) VALUES ('rajesh','raj123','Rajesh Kumar','sales','Zone A - Central')");
                     db.run("INSERT INTO users (username,password,name,role,area) VALUES ('suresh','sur123','Suresh Yadav','sales','Zone B - North')");
                     db.run("INSERT INTO users (username,password,name,role,area) VALUES ('mahesh','mah123','Mahesh Patil','sales','Zone C - South')");
+                } else {
+                    var adminCheck = db.exec("SELECT id FROM users WHERE username='admin'");
+                    if (!adminCheck.length) {
+                        db.run("INSERT INTO users (username,password,name,role,area) VALUES ('admin','admin123','Administrator','admin','All')");
+                    }
                 }
 
                 db.run("INSERT OR IGNORE INTO settings (key,value) VALUES ('firm_name','Vijayeswara Agencies')");

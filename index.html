@@ -142,7 +142,7 @@
     
     <script>
         // ============================================================
-        // FIREBASE CONFIGURATION (Only for Firestore)
+        // FIREBASE CONFIGURATION
         // ============================================================
         const firebaseConfig = {
             apiKey: "AIzaSyB69L99LDuQeKq2LQmahZujifIWEiZ-nFQ",
@@ -275,7 +275,8 @@
             uploadProgress: 0,
             isUploading: false,
             moreMenuOpen: false,
-            syncStatus: 'synced'
+            syncStatus: 'synced',
+            usersLoaded: false
         };
 
         function today() { return new Date().toISOString().split('T')[0] }
@@ -381,6 +382,95 @@
             var r = db.exec("SELECT DISTINCT username,name,role,area FROM users WHERE is_active=1 AND role IN ('sales','ase') ORDER BY name");
             if (!r.length) return [];
             return r[0].values.map(function(row) { return { username: row[0], name: row[1], role: row[2], area: row[3] } });
+        }
+
+        // ============================================================
+        // FIREBASE USER SYNC FUNCTIONS
+        // ============================================================
+        async function syncUsersToFirestore() {
+            if (!firestore) return;
+            try {
+                var users = db.exec("SELECT id,username,password,name,role,area,is_active,created_at FROM users");
+                if (!users.length) return;
+                var batch = firestore.batch();
+                users[0].values.forEach(function(row) {
+                    var ref = firestore.collection('users').doc(String(row[0]));
+                    batch.set(ref, {
+                        id: row[0],
+                        username: row[1],
+                        password: row[2],
+                        name: row[3],
+                        role: row[4],
+                        area: row[5] || '',
+                        isActive: row[6] === 1,
+                        createdAt: row[7] || new Date().toISOString()
+                    }, { merge: true });
+                });
+                await batch.commit();
+                console.log('✅ Users synced to Firebase');
+            } catch (e) {
+                console.warn('⚠️ Firebase user sync error:', e);
+            }
+        }
+
+        async function syncSingleUserToFirestore(userId) {
+            if (!firestore) return;
+            try {
+                var r = db.exec("SELECT id,username,password,name,role,area,is_active,created_at FROM users WHERE id=" + userId);
+                if (!r.length) return;
+                var row = r[0].values[0];
+                await firestore.collection('users').doc(String(row[0])).set({
+                    id: row[0],
+                    username: row[1],
+                    password: row[2],
+                    name: row[3],
+                    role: row[4],
+                    area: row[5] || '',
+                    isActive: row[6] === 1,
+                    createdAt: row[7] || new Date().toISOString()
+                }, { merge: true });
+                console.log('✅ User synced to Firebase:', row[1]);
+            } catch (e) {
+                console.warn('⚠️ Firebase user sync error:', e);
+                throw e;
+            }
+        }
+
+        async function deleteUserFromFirestore(userId) {
+            if (!firestore) return;
+            try {
+                await firestore.collection('users').doc(String(userId)).delete();
+                console.log('✅ User deleted from Firebase:', userId);
+            } catch (e) {
+                console.warn('⚠️ Firebase user delete error:', e);
+                throw e;
+            }
+        }
+
+        async function loadUsersFromFirestore() {
+            if (!firestore) return;
+            try {
+                var snapshot = await firestore.collection('users').get();
+                if (snapshot.empty) return;
+                
+                var batch = db.exec("SELECT id FROM users");
+                var localIds = batch.length ? batch[0].values.map(function(row) { return row[0] }) : [];
+                
+                snapshot.forEach(function(doc) {
+                    var data = doc.data();
+                    var exists = localIds.indexOf(data.id) > -1;
+                    if (exists) {
+                        db.run("UPDATE users SET username='" + esc(data.username) + "',password='" + esc(data.password) + "',name='" + esc(data.name) + "',role='" + esc(data.role) + "',area='" + esc(data.area || '') + "',is_active=" + (data.isActive ? 1 : 0) + " WHERE id=" + data.id);
+                    } else {
+                        db.run("INSERT OR REPLACE INTO users (id,username,password,name,role,area,is_active,created_at) VALUES (" + data.id + ",'" + esc(data.username) + "','" + esc(data.password) + "','" + esc(data.name) + "','" + esc(data.role) + "','" + esc(data.area || '') + "'," + (data.isActive ? 1 : 0) + ",'" + esc(data.createdAt || new Date().toISOString()) + "')");
+                    }
+                });
+                saveDB();
+                console.log('✅ Users loaded from Firebase');
+                S.usersLoaded = true;
+            } catch (e) {
+                console.warn('⚠️ Firebase load users error:', e);
+            }
         }
 
         // ============================================================
@@ -664,9 +754,9 @@
         }
 
         // ============================================================
-        // USER MANAGEMENT - FIXED
+        // USER MANAGEMENT WITH FIREBASE SYNC
         // ============================================================
-        function saveUser() {
+        async function saveUser() {
             var username = document.getElementById('usr-name').value.trim().toLowerCase();
             var password = document.getElementById('usr-pass').value;
             var fullname = document.getElementById('usr-full').value.trim();
@@ -674,14 +764,17 @@
             var area = document.getElementById('usr-area').value.trim();
             
             if (!username) { toast('Username is required', 'error'); return }
-            if (!password) { toast('Password is required', 'error'); return }
             if (!fullname) { toast('Full name is required', 'error'); return }
             if (!role) { toast('Role is required', 'error'); return }
             
-            if (password.length < 4) { 
+            if (!S.editingUser && !password) { toast('Password is required for new user', 'error'); return }
+            if (password && password.length < 4) { 
                 toast('Password must be at least 4 characters', 'error'); 
                 return 
             }
+            
+            S.syncStatus = 'syncing';
+            render();
             
             try {
                 if (S.editingUser) {
@@ -694,35 +787,78 @@
                     }
                     
                     db.run("UPDATE users SET username='" + esc(username) + "',password='" + esc(updatePassword) + "',name='" + esc(fullname) + "',role='" + esc(role) + "',area='" + esc(area) + "' WHERE id=" + S.editingUser.id);
-                    toast('✅ User updated!');
+                    await syncSingleUserToFirestore(S.editingUser.id);
+                    toast('✅ User updated & synced!');
                 } else {
                     var exist = db.exec("SELECT id FROM users WHERE username='" + esc(username) + "'");
                     if (exist.length) { 
                         toast('Username "' + username + '" already taken!', 'error'); 
+                        S.syncStatus = 'synced';
+                        render();
                         return 
                     }
                     
                     db.run("INSERT INTO users (username,password,name,role,area) VALUES ('" + esc(username) + "','" + esc(password) + "','" + esc(fullname) + "','" + esc(role) + "','" + esc(area) + "')");
-                    toast('✅ User created! Username: ' + username + ', Password: ' + password);
+                    var newId = db.exec("SELECT last_insert_rowid()")[0].values[0][0];
+                    saveDB();
+                    await syncSingleUserToFirestore(newId);
+                    toast('✅ User created & synced! Username: ' + username + ', Password: ' + password);
                     console.log('New user created:', { username, password, fullname, role, area });
                 }
                 saveDB();
                 S.userModal = null;
                 S.editingUser = null;
+                S.syncStatus = 'synced';
                 render();
             } catch (e) { 
                 console.error('Save user error:', e);
+                S.syncStatus = 'error';
                 toast('Error: ' + e.message, 'error');
+                render();
             }
         }
 
-        function toggleUserActive(id, active) {
+        async function toggleUserActive(id, active) {
             var r = db.exec("SELECT username FROM users WHERE id=" + id);
             if (r.length && r[0].values[0][0] === S.user) { toast('Cannot disable your own account', 'error'); return }
-            db.run("UPDATE users SET is_active=" + (active ? 1 : 0) + " WHERE id=" + id);
-            saveDB();
-            toast(active ? 'User activated' : 'User deactivated', 'info');
-            render()
+            
+            S.syncStatus = 'syncing';
+            render();
+            
+            try {
+                db.run("UPDATE users SET is_active=" + (active ? 1 : 0) + " WHERE id=" + id);
+                saveDB();
+                await syncSingleUserToFirestore(id);
+                S.syncStatus = 'synced';
+                toast(active ? 'User activated & synced' : 'User deactivated & synced', 'info');
+                render();
+            } catch (e) {
+                S.syncStatus = 'error';
+                toast('Error: ' + e.message, 'error');
+                render();
+            }
+        }
+
+        async function deleteUser(id) {
+            var r = db.exec("SELECT username FROM users WHERE id=" + id);
+            if (r.length && r[0].values[0][0] === S.user) { toast('Cannot delete your own account', 'error'); return }
+            if (!confirm('Delete this user permanently?')) return;
+            
+            S.syncStatus = 'syncing';
+            render();
+            
+            try {
+                db.run("DELETE FROM users WHERE id=" + id);
+                saveDB();
+                await deleteUserFromFirestore(id);
+                S.syncStatus = 'synced';
+                toast('🗑️ User deleted from local & cloud', 'info');
+                render();
+            } catch (e) {
+                S.syncStatus = 'error';
+                toast('Error: ' + e.message, 'error');
+                render();
+            }
         }
 
         // ============================================================
@@ -750,7 +886,25 @@
             render();
         }
 
-        function logout() { S.user = null; S.role = null; S.userName = ''; S.view = 'login'; S.adminView = 'dashboard'; S.adminSP = ''; S.orderDetailId = null; S.loadSelection = {}; S._skipEnsure = false; S.assetPhoto = ''; S.assetPhotoPreview = ''; S.assetFile = null; S.moreMenuOpen = false; S.isUploading = false; S.uploadProgress = 0; resetForm(); render() }
+        function logout() { 
+            S.user = null; 
+            S.role = null; 
+            S.userName = ''; 
+            S.view = 'login'; 
+            S.adminView = 'dashboard'; 
+            S.adminSP = ''; 
+            S.orderDetailId = null; 
+            S.loadSelection = {}; 
+            S._skipEnsure = false; 
+            S.assetPhoto = ''; 
+            S.assetPhotoPreview = ''; 
+            S.assetFile = null; 
+            S.moreMenuOpen = false; 
+            S.isUploading = false; 
+            S.uploadProgress = 0; 
+            resetForm(); 
+            render() 
+        }
 
         // ============================================================
         // RENDER FUNCTIONS
@@ -1462,6 +1616,7 @@
                     '<div class="flex gap-1.5 mt-2 pt-2 border-t border-gray-50">' +
                     '<button onclick="S.editingUser=' + JSON.stringify(u).replace(/"/g, '&quot;') + ';S.userModal=true;render();" class="text-[10px] px-2.5 py-1.5 rounded-lg bg-gray-50 text-gray-600 btn-press touch-target"><i class="fa-solid fa-pen mr-1"></i>Edit</button>' +
                     '<button onclick="toggleUserActive(' + u.id + ',' + (!u.active) + ')" class="text-[10px] px-2.5 py-1.5 rounded-lg bg-gray-50 text-gray-600 btn-press touch-target">' + (u.active ? '<i class="fa-solid fa-ban mr-1"></i>Disable' : '<i class="fa-solid fa-check mr-1"></i>Enable') + '</button>' +
+                    '<button onclick="deleteUser(' + u.id + ')" class="text-[10px] px-2.5 py-1.5 rounded-lg bg-red-50 text-red-600 btn-press touch-target ml-auto"><i class="fa-solid fa-trash"></i></button>' +
                     '</div></div>';
             }).join('');
 
@@ -2066,7 +2221,7 @@
                     '</div></div></div>';
             }
 
-            // FIXED: User Modal with better password handling
+            // User Modal with Firebase sync
             if (S.userModal) {
                 var u = S.editingUser || { username: '', password: '', name: '', role: 'sales', area: '' };
                 var isEditing = S.editingUser !== null;
@@ -2081,7 +2236,7 @@
                     '</div>' +
                     '<div><label class="text-xs font-semibold text-gray-500">Full Name *</label><input id="usr-full" type="text" value="' + escH(u.name) + '" class="w-full mt-1 px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-pri" placeholder="Enter full name"></div>' +
                     '<div class="grid grid-cols-2 gap-3"><div><label class="text-xs font-semibold text-gray-500">Role *</label><select id="usr-role" class="w-full mt-1 px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-pri"><option value="sales" ' + (u.role === 'sales' ? 'selected' : '') + '>Sales</option><option value="ase" ' + (u.role === 'ase' ? 'selected' : '') + '>ASE</option><option value="admin" ' + (u.role === 'admin' ? 'selected' : '') + '>Admin</option></select></div><div><label class="text-xs font-semibold text-gray-500">Area</label><input id="usr-area" type="text" value="' + escH(u.area || '') + '" class="w-full mt-1 px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-pri" placeholder="Enter area"></div></div>' +
-                    '<button onclick="saveUser()" class="w-full py-3 rounded-xl bg-pri text-white font-semibold text-sm btn-press touch-target">' + (isEditing ? 'Update User' : 'Create User') + '</button>' +
+                    '<button onclick="saveUser()" class="w-full py-3 rounded-xl bg-pri text-white font-semibold text-sm btn-press touch-target" id="save-user-btn">' + (isEditing ? 'Update User' : 'Create User') + '</button>' +
                     '</div></div></div>';
             }
 
@@ -2136,7 +2291,6 @@
             var file = input.files[0];
             if (!file) return;
             
-            // Validate file type
             var validTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
             if (!validTypes.includes(file.type)) {
                 toast('Please upload JPEG, PNG, WEBP, or GIF images only', 'error');
@@ -2144,7 +2298,6 @@
                 return;
             }
             
-            // Validate file size (max 5MB)
             if (file.size > 5 * 1024 * 1024) {
                 toast('Image too large. Max 5MB allowed.', 'error');
                 input.value = '';
@@ -2209,6 +2362,15 @@
                 try { db.run("ALTER TABLE orders ADD COLUMN status TEXT DEFAULT 'open'") } catch (e) {}
                 try { db.run("ALTER TABLE orders ADD COLUMN bill_number INTEGER") } catch (e) {}
 
+                // Try to load users from Firebase first
+                if (firestore) {
+                    try {
+                        await loadUsersFromFirestore();
+                    } catch (e) {
+                        console.warn('Could not load users from Firebase, using local:', e);
+                    }
+                }
+
                 var userCount = db.exec("SELECT COUNT(*) FROM users");
                 if (!userCount.length || userCount[0].values[0][0] === 0) {
                     db.run("INSERT INTO users (username,password,name,role,area) VALUES ('admin','admin123','Administrator','admin','All')");
@@ -2216,10 +2378,17 @@
                     db.run("INSERT INTO users (username,password,name,role,area) VALUES ('rajesh','raj123','Rajesh Kumar','sales','Zone A - Central')");
                     db.run("INSERT INTO users (username,password,name,role,area) VALUES ('suresh','sur123','Suresh Yadav','sales','Zone B - North')");
                     db.run("INSERT INTO users (username,password,name,role,area) VALUES ('mahesh','mah123','Mahesh Patil','sales','Zone C - South')");
+                    
+                    // Sync initial users to Firebase
+                    await syncUsersToFirestore();
                 } else {
                     var adminCheck = db.exec("SELECT id FROM users WHERE username='admin'");
                     if (!adminCheck.length) {
                         db.run("INSERT INTO users (username,password,name,role,area) VALUES ('admin','admin123','Administrator','admin','All')");
+                    }
+                    // Ensure users are synced to Firebase
+                    if (firestore) {
+                        await syncUsersToFirestore();
                     }
                 }
 

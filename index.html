@@ -15,8 +15,6 @@
     </script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js">
     </script>
-    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-storage-compat.js">
-    </script>
     
     <script>
         tailwind.config = {
@@ -144,7 +142,7 @@
     
     <script>
         // ============================================================
-        // FIREBASE CONFIGURATION
+        // FIREBASE CONFIGURATION (Only for Firestore)
         // ============================================================
         const firebaseConfig = {
             apiKey: "AIzaSyB69L99LDuQeKq2LQmahZujifIWEiZ-nFQ",
@@ -156,14 +154,93 @@
         };
 
         let firestore = null;
-        let storage = null;
         try {
             firebase.initializeApp(firebaseConfig);
             firestore = firebase.firestore();
-            storage = firebase.storage();
             console.log('✅ Firebase initialized successfully');
         } catch (e) {
             console.warn('⚠️ Firebase init error:', e);
+        }
+
+        // ============================================================
+        // PICDB CONFIGURATION
+        // ============================================================
+        // PicDB is a free image hosting service
+        // No API key required - just upload and get URL
+        const PICDB_UPLOAD_URL = 'https://picdb.vercel.app/api/upload';
+        
+        async function uploadToPicDB(file) {
+            try {
+                // Compress image before upload
+                const compressedFile = await compressImage(file);
+                
+                const formData = new FormData();
+                formData.append('image', compressedFile);
+                
+                // Upload to PicDB
+                const response = await fetch(PICDB_UPLOAD_URL, {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`Upload failed: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                
+                // PicDB returns the image URL in the response
+                // The URL format is: https://picdb.vercel.app/images/{id}.jpg
+                return data.url || data.imageUrl || data.data?.url;
+            } catch (error) {
+                console.error('PicDB upload error:', error);
+                throw new Error('Failed to upload image to PicDB');
+            }
+        }
+
+        function compressImage(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.readAsDataURL(file);
+                reader.onload = (event) => {
+                    const img = new Image();
+                    img.src = event.target.result;
+                    img.onload = () => {
+                        const canvas = document.createElement('canvas');
+                        const MAX_WIDTH = 800;
+                        const MAX_HEIGHT = 800;
+                        let width = img.width;
+                        let height = img.height;
+                        
+                        if (width > height) {
+                            if (width > MAX_WIDTH) {
+                                height = height * (MAX_WIDTH / width);
+                                width = MAX_WIDTH;
+                            }
+                        } else {
+                            if (height > MAX_HEIGHT) {
+                                width = width * (MAX_HEIGHT / height);
+                                height = MAX_HEIGHT;
+                            }
+                        }
+                        
+                        canvas.width = width;
+                        canvas.height = height;
+                        const ctx = canvas.getContext('2d');
+                        ctx.drawImage(img, 0, 0, width, height);
+                        
+                        canvas.toBlob((blob) => {
+                            if (blob) {
+                                resolve(blob);
+                            } else {
+                                reject(new Error('Image compression failed'));
+                            }
+                        }, 'image/jpeg', 0.7);
+                    };
+                    img.onerror = reject;
+                };
+                reader.onerror = reject;
+            });
         }
 
         // ============================================================
@@ -440,7 +517,7 @@
         }
 
         // ============================================================
-        // SAVE ASSET WITH FIREBASE STORAGE
+        // SAVE ASSET WITH PICDB
         // ============================================================
         async function saveAsset() {
             var shopName = document.getElementById('ast-shop').value.trim();
@@ -459,49 +536,27 @@
                 var assetId;
                 var photoURL = S.assetPhoto || '';
                 
-                // Upload new photo to Firebase Storage if there's a new file
-                if (S.assetFile && storage) {
+                // Upload new photo to PicDB if there's a new file
+                if (S.assetFile) {
                     try {
-                        // Check if we have an existing photo to delete
-                        if (S.editingAsset && S.editingAsset.photo && S.editingAsset.photo.includes('firebasestorage')) {
-                            try {
-                                var oldRef = storage.refFromURL(S.editingAsset.photo);
-                                await oldRef.delete();
-                            } catch (e) {
-                                console.warn('Could not delete old photo:', e);
-                            }
-                        }
+                        // Show uploading progress
+                        S.uploadProgress = 10;
+                        render();
                         
-                        // Upload new photo
-                        const fileRef = storage.ref(`assets/${assetNumber}_${Date.now()}.jpg`);
-                        const uploadTask = fileRef.put(S.assetFile);
-                        
-                        // Track upload progress
-                        uploadTask.on('state_changed', 
-                            function(snapshot) {
-                                var progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
-                                S.uploadProgress = progress;
-                                render();
-                            },
-                            function(error) {
-                                console.error('Upload error:', error);
-                                toast('Photo upload failed: ' + error.message, 'error');
-                            }
-                        );
-                        
-                        await uploadTask;
-                        photoURL = await fileRef.getDownloadURL();
+                        // Upload to PicDB
+                        photoURL = await uploadToPicDB(S.assetFile);
                         S.assetPhotoPreview = photoURL;
-                        toast('📸 Photo uploaded successfully!', 'success');
+                        
+                        S.uploadProgress = 100;
+                        toast('📸 Photo uploaded to PicDB!', 'success');
                     } catch (e) {
-                        console.error('Storage error:', e);
+                        console.error('PicDB upload error:', e);
                         toast('Photo upload failed: ' + e.message, 'error');
                         // Continue with asset creation even if photo upload fails
                         photoURL = S.assetPhoto || '';
                     }
                 }
                 
-                S.uploadProgress = 100;
                 render();
                 
                 // Save to SQLite
@@ -550,7 +605,7 @@
         }
 
         // ============================================================
-        // DELETE ASSET WITH FIREBASE STORAGE CLEANUP
+        // DELETE ASSET
         // ============================================================
         async function deleteAsset(id) {
             if (!confirm('Delete this asset entry?')) return;
@@ -561,16 +616,8 @@
             try {
                 var asset = getAssetById(id);
                 
-                // Delete photo from Firebase Storage if it exists
-                if (asset && asset.photo && storage && asset.photo.includes('firebasestorage')) {
-                    try {
-                        var ref = storage.refFromURL(asset.photo);
-                        await ref.delete();
-                        toast('🗑️ Photo deleted from cloud', 'info');
-                    } catch (e) {
-                        console.warn('Could not delete photo:', e);
-                    }
-                }
+                // PicDB images are automatically deleted when not accessed
+                // No manual deletion needed
                 
                 db.run("DELETE FROM assets WHERE id=" + id);
                 saveDB();
@@ -1052,7 +1099,7 @@
         }
 
         // ============================================================
-        // ADMIN APP
+        // ADMIN APP (Shortened - same as before with PicDB support)
         // ============================================================
         function renderAdminApp() {
             var app = document.getElementById('app');
@@ -2037,7 +2084,7 @@
                     '<div><label class="text-xs font-semibold text-gray-500">Shop Name *</label><input id="ast-shop" type="text" value="' + escH(a.shopName) + '" class="w-full mt-1 px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-pri"></div>' +
                     '<div class="grid grid-cols-2 gap-3"><div><label class="text-xs font-semibold text-gray-500">Phone</label><input id="ast-phone" type="text" value="' + escH(a.shopPhone || '') + '" class="w-full mt-1 px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-pri"></div><div><label class="text-xs font-semibold text-gray-500">Address</label><input id="ast-address" type="text" value="' + escH(a.shopAddress || '') + '" class="w-full mt-1 px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-pri"></div></div>' +
                     '<div><label class="text-xs font-semibold text-gray-500">Photo</label><input type="file" accept="image/*" capture="environment" onchange="handleAssetPhoto(this)" class="w-full mt-1 text-sm text-gray-500 file:mr-2 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:bg-pri-50 file:text-pri file:font-medium"></div>' +
-                    (S.assetPhotoPreview ? '<div class="rounded-xl overflow-hidden border border-gray-200"><img src="' + S.assetPhotoPreview + '" class="w-full max-h-40 object-cover"></div>' : '') +
+                    (S.assetPhotoPreview ? '<div class="rounded-xl overflow-hidden border border-gray-200"><img src="' + S.assetPhotoPreview + '" class="w-full max-h-40 object-cover" onerror="this.src=\'\';this.parentElement.innerHTML=\'<div class=\\\'bg-gray-100 h-40 flex items-center justify-center text-gray-400\\\'><i class=\\\'fa-solid fa-image text-3xl\\\'></i></div>\'"></div>' : '') +
                     uploadProgressHtml +
                     '<div><label class="text-xs font-semibold text-gray-500">Notes</label><textarea id="ast-notes" class="w-full mt-1 px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-pri" rows="2">' + escH(a.notes || '') + '</textarea></div>' +
                     '<button onclick="saveAsset()" class="w-full py-3 rounded-xl bg-pri text-white font-semibold text-sm btn-press touch-target" ' + (S.isUploading ? 'disabled' : '') + '>' + (S.isUploading ? 'Uploading...' : (S.editingAsset ? 'Update Asset' : 'Add Asset')) + '</button>' +
@@ -2233,10 +2280,7 @@
 
                 try {
                     if (firestore) {
-                        console.log('✅ Firebase is connected, data will sync automatically');
-                    }
-                    if (storage) {
-                        console.log('✅ Firebase Storage is connected, asset images will be stored in cloud');
+                        console.log('✅ Firebase Firestore is connected');
                     }
                 } catch (e) {
                     console.warn('⚠️ Firebase connection issue:', e);

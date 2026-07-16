@@ -1,0 +1,2287 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>CoolDrink Pro · Distribution</title>
+    <script src="https://cdn.tailwindcss.com">
+    </script>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.3/sql-wasm.js">
+    </script>
+    
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js">
+    </script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js">
+    </script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-storage-compat.js">
+    </script>
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        pri: { DEFAULT: '#0E7C6B', light: '#12A68E', dark: '#0A5E52', 50: '#EDFAF7', 100: '#D0F5ED' },
+                        acc: { DEFAULT: '#E8722A', light: '#F09050', dark: '#C45D1E' },
+                        surface: '#F5F4F0',
+                        danger: '#DC2626'
+                    },
+                    fontFamily: {
+                        display: ['Space Grotesk', 'sans-serif'],
+                        body: ['DM Sans', 'sans-serif']
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        * {
+            scrollbar-width: thin;
+            scrollbar-color: #0E7C6B transparent;
+            -webkit-tap-highlight-color: transparent
+        }
+        ::-webkit-scrollbar {
+            width: 4px;
+            height: 4px
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #0E7C6B;
+            border-radius: 2px
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent
+        }
+        body {
+            font-family: 'DM Sans', sans-serif;
+            background: #F5F4F0;
+            overscroll-behavior: none;
+            margin: 0;
+            padding: 0;
+        }
+        .fade-in {
+            animation: fadeIn .25s ease
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(6px) }
+            to { opacity: 1; transform: translateY(0) }
+        }
+        @keyframes slideUp {
+            from { transform: translateY(100%) }
+            to { transform: translateY(0) }
+        }
+        @keyframes toastIn {
+            from { opacity: 0; transform: translateX(60px) }
+            to { opacity: 1; transform: translateX(0) }
+        }
+        @keyframes toastOut {
+            to { opacity: 0; transform: translateX(60px) }
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg) }
+        }
+        @keyframes modalIn {
+            from { opacity: 0; transform: scale(.96) }
+            to { opacity: 1; transform: scale(1) }
+        }
+        @keyframes menuSlide {
+            from { transform: translateY(100%) }
+            to { transform: translateY(0) }
+        }
+        .modal-enter { animation: modalIn .2s ease }
+        .toast-in { animation: toastIn .3s ease }
+        .toast-out { animation: toastOut .3s ease forwards }
+        .menu-slide { animation: menuSlide .25s ease }
+        .product-card { transition: all .12s ease }
+        .product-card:active { transform: scale(.97) }
+        .product-card.has-qty { border-color: #0E7C6B; background: #EDFAF7 }
+        .cat-pill { transition: all .12s ease; white-space: nowrap }
+        .cat-pill.active { background: #0E7C6B; color: white; box-shadow: 0 2px 8px rgba(14, 124, 107, .3) }
+        .stat-card:active { transform: scale(.97) }
+        .btn-press:active { transform: scale(.96) }
+        .overlay { background: rgba(0, 0, 0, .45); backdrop-filter: blur(2px) }
+        .qty-btn { width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; border-radius: 8px; font-weight: 700; font-size: 16px; transition: all .1s; cursor: pointer; user-select: none }
+        .qty-btn:active { transform: scale(.88) }
+        .spinner { animation: spin 1s linear infinite; display: inline-block }
+        input[type="number"]::-webkit-inner-spin-button,
+        input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0 }
+        input[type="number"] { -moz-appearance: textfield }
+        input, select, textarea { font-size: 16px !important }
+        @media print { .no-print { display: none !important } }
+        .bottom-nav { padding-bottom: env(safe-area-inset-bottom) }
+        .rpt-table th { position: sticky; top: 0; background: #f9fafb; z-index: 2 }
+        .rpt-table td, .rpt-table th { padding: 5px 8px; text-align: left; font-size: 11px; border-bottom: 1px solid #e5e7eb; white-space: nowrap }
+        .rpt-cat-row td { background: #edfaf7 !important; font-weight: 700; color: #0a5e52; font-size: 10px; text-transform: uppercase; letter-spacing: .5px }
+        .asset-card:active { transform: scale(.98) }
+        .mobile-tab { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; padding: 6px 0; font-size: 10px; font-weight: 500; color: #9ca3af; transition: color .12s; min-height: 48px; cursor: pointer; -webkit-user-select: none; user-select: none }
+        .mobile-tab.active { color: #0E7C6B }
+        .mobile-tab i { font-size: 18px }
+        .card-shadow { box-shadow: 0 1px 3px rgba(0, 0, 0, .06), 0 1px 2px rgba(0, 0, 0, .03) }
+        .touch-target { min-height: 44px; min-width: 44px }
+        .contrib-bar { height: 6px; border-radius: 4px; background: #e5e7eb; overflow: hidden }
+        .contrib-fill { height: 100%; border-radius: 4px; background: linear-gradient(90deg, #0E7C6B, #12A68E); transition: width .6s ease }
+        .cart-bar-fixed { position: fixed; bottom: 0; left: 0; right: 0; z-index: 45; padding-bottom: calc(env(safe-area-inset-bottom) + 0px); background: transparent; pointer-events: none; }
+        .cart-bar-fixed>* { pointer-events: auto; }
+        .sync-status { font-size: 10px; padding: 2px 8px; border-radius: 12px; background: #e5e7eb; color: #6b7280; }
+        .sync-status.synced { background: #d1fae5; color: #065f46; }
+        .sync-status.syncing { background: #fef3c7; color: #92400e; }
+        .sync-status.error { background: #fee2e2; color: #991b1b; }
+        .sidebar-item { transition: all .12s ease; cursor: pointer; }
+        .sidebar-item:hover { background: rgba(14, 124, 107, .08); }
+        .sidebar-item.active { background: rgba(14, 124, 107, .12); color: #0E7C6B; font-weight: 600; }
+        .sidebar-item i { width: 20px; text-align: center; }
+        @media print { .page-break { page-break-before: always; } }
+        .outlet-block { page-break-inside: avoid; }
+        .upload-progress { height: 4px; background: #e5e7eb; border-radius: 2px; overflow: hidden; margin-top: 4px; }
+        .upload-progress-bar { height: 100%; background: linear-gradient(90deg, #0E7C6B, #12A68E); transition: width 0.3s ease; width: 0%; }
+    </style>
+</head>
+<body>
+    <div id="app"></div>
+    <div id="toast-container" class="fixed top-3 right-3 z-[200] flex flex-col gap-2 pointer-events-none"></div>
+    <div id="modal-root"></div>
+    
+    <script>
+        // ============================================================
+        // FIREBASE CONFIGURATION
+        // ============================================================
+        const firebaseConfig = {
+            apiKey: "AIzaSyB69L99LDuQeKq2LQmahZujifIWEiZ-nFQ",
+            authDomain: "cooldrink-pro.firebaseapp.com",
+            projectId: "cooldrink-pro",
+            storageBucket: "cooldrink-pro.firebasestorage.app",
+            messagingSenderId: "569175982162",
+            appId: "1:569175982162:web:5f5cd0f4b209ed00ef9f8b"
+        };
+
+        let firestore = null;
+        let storage = null;
+        try {
+            firebase.initializeApp(firebaseConfig);
+            firestore = firebase.firestore();
+            storage = firebase.storage();
+            console.log('✅ Firebase initialized successfully');
+        } catch (e) {
+            console.warn('⚠️ Firebase init error:', e);
+        }
+
+        // ============================================================
+        // SQLite DB and State
+        // ============================================================
+        var db = null;
+        var S = {
+            user: null,
+            role: null,
+            userName: '',
+            view: 'login',
+            form: { shopName: '', shopPhone: '', shopLocation: '', shopLat: null, shopLng: null, items: [], discount: 0 },
+            editingOrderId: null,
+            catFilter: 'All',
+            search: '',
+            cartOpen: false,
+            adminDate: new Date().toISOString().split('T')[0],
+            adminSP: '',
+            adminView: 'dashboard',
+            adminStatusFilter: 'all',
+            productModal: null,
+            editingProduct: null,
+            userModal: null,
+            editingUser: null,
+            orderDetailId: null,
+            dbReady: false,
+            loadSelection: {},
+            _skipEnsure: false,
+            rptSP: '',
+            rptPeriod: 'thisMonth',
+            rptFrom: '',
+            rptTo: '',
+            assetSearch: '',
+            assetModal: null,
+            editingAsset: null,
+            assetViewId: null,
+            assetPhoto: '',
+            assetPhotoPreview: '',
+            assetFile: null,
+            uploadProgress: 0,
+            isUploading: false,
+            moreMenuOpen: false,
+            syncStatus: 'synced'
+        };
+
+        function today() { return new Date().toISOString().split('T')[0] }
+        function fmt(n) { if (n == null) return 'N/A'; return '\u20B9' + Number(n).toLocaleString('en-IN') }
+        function fmtN(n) { if (n == null) return '0'; return Number(n).toLocaleString('en-IN') }
+        function fmtKg(n) { return n.toFixed(1) + ' kg' }
+        function fmtDate(d) { if (!d) return ''; var dt = new Date(d + (d.length === 10 ? 'T00:00:00' : '')); return dt.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) }
+        function parseML(pack) { var m = pack.match(/([\d.]+)(ml|Ltr)/i); if (!m) return 200; var v = parseFloat(m[1]); if (m[2].toLowerCase() === 'ltr') v *= 1000; return v }
+        function genOrderId() { return 'CD-' + Date.now().toString(36).toUpperCase() }
+        function genSKU(cat, idx) { var prefix = { Campa: 'CMP', Cans: 'CAN', 'Club Soda': 'SOD', Water: 'WTR', 'Jeera Up': 'JER', Raskik: 'RSK', Energy: 'ENG', Spinner: 'SPN', Suncrush: 'SNC', Milkshake: 'MSK' }; return 'CD-' + (prefix[cat] || 'OTH') + '-' + String(idx).padStart(3, '0') }
+        function esc(s) { return s ? s.replace(/'/g, "''") : '' }
+        function escH(s) { if (!s) return ''; return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;') }
+
+        function toast(msg, type) {
+            if (!type) type = 'success';
+            var c = document.getElementById('toast-container');
+            if (!c) return;
+            var colors = { success: 'bg-pri text-white', error: 'bg-danger text-white', info: 'bg-gray-800 text-white', warning: 'bg-acc text-white' };
+            var icons = { success: 'fa-check-circle', error: 'fa-exclamation-circle', info: 'fa-info-circle', warning: 'fa-triangle-exclamation' };
+            var el = document.createElement('div');
+            el.className = 'pointer-events-auto ' + (colors[type] || colors.info) + ' px-4 py-3 rounded-xl shadow-lg flex items-center gap-3 text-sm font-medium toast-in max-w-[280px]';
+            el.innerHTML = '<i class="fa-solid ' + (icons[type] || icons.info) + ' flex-shrink-0"></i><span>' + msg + '</span>';
+            c.appendChild(el);
+            setTimeout(function() { el.classList.remove('toast-in'); el.classList.add('toast-out'); setTimeout(function() { el.remove(); }, 300) }, 2500);
+        }
+
+        function sortItems(items) {
+            return items.sort(function(a, b) {
+                var cc = (a.cat || a.category || '').localeCompare(b.cat || b.category || '');
+                if (cc !== 0) return cc;
+                var sa = parseML(a.pack), sb = parseML(b.pack);
+                if (sa !== sb) return sa - sb;
+                return (a.name || '').localeCompare(b.name || '');
+            });
+        }
+
+        function getProducts() {
+            if (!db) return [];
+            var r = db.exec("SELECT id,sku,name,pack,units,price,category FROM products WHERE is_active=1 ORDER BY category,name,pack");
+            if (!r.length) return [];
+            var prods = r[0].values.map(function(row) { return { id: row[0], sku: row[1], name: row[2], pack: row[3], units: row[4], price: row[5], cat: row[6] } });
+            return sortItems(prods);
+        }
+
+        function getAllProductsAdmin() {
+            var r = db.exec("SELECT id,sku,name,pack,units,price,category,is_active,updated_at FROM products ORDER BY category,name,pack");
+            if (!r.length) return [];
+            var prods = r[0].values.map(function(row) { return { id: row[0], sku: row[1], name: row[2], pack: row[3], units: row[4], price: row[5], cat: row[6], active: row[7], updated: row[8] } });
+            return sortItems(prods);
+        }
+
+        function getCategories() { var p = getProducts(); return ['All'].concat(Array.from(new Set(p.map(function(x) { return x.cat; })))) }
+        function getP(id) { return getProducts().find(function(p) { return p.id === id; }) }
+        function getCartItems() { return S.form.items.filter(function(i) { return i.cases > 0; }) }
+        function cartTotal() { return getCartItems().reduce(function(s, i) { var p = getP(i.pid); return s + (p && p.price ? i.cases * p.price : 0) }, 0) }
+        function cartLoad() { return getCartItems().reduce(function(s, i) { var p = getP(i.pid); return s + (p ? (parseML(p.pack) / 1000 + 0.02) * p.units * i.cases : 0) }, 0) }
+        function cartCount() { return getCartItems().reduce(function(s, i) { return s + i.cases }, 0) }
+
+        function getSetting(key, def) {
+            if (!def) def = '';
+            if (!db) return def;
+            var r = db.exec("SELECT value FROM settings WHERE key='" + esc(key) + "'");
+            return r.length ? r[0].values[0][0] : def;
+        }
+
+        function setSetting(key, val) { db.run("INSERT OR REPLACE INTO settings (key,value) VALUES ('" + esc(key) + "','" + esc(val) + "')"); saveDB() }
+
+        function getFirm() { return { name: getSetting('firm_name', 'Vijayeswara Agencies'), gst: getSetting('firm_gst', ''), phone: getSetting('firm_phone', ''), address: getSetting('firm_address', '') } }
+
+        function saveDB() {
+            if (!db) return;
+            try { var data = db.export(); var buf = new Uint8Array(data); var req = indexedDB.open('CoolDrinkDB', 1);
+                req.onsuccess = function(e) { var idb = e.target.result; var tx = idb.transaction('database', 'readwrite'); var store = tx.objectStore('database'); store.put(buf, 'main') } } catch (e) { console.warn('Save DB error:', e) }
+        }
+
+        function getOrderItems(oid) {
+            var r = db.exec("SELECT product_name,pack,cases,units_per_case,unit_price,line_total FROM order_items WHERE order_id='" + esc(oid) + "'");
+            if (!r.length) return [];
+            return r[0].values.map(function(row) { return { name: row[0], pack: row[1], cases: row[2], units: row[3], price: row[4], total: row[5] } });
+        }
+
+        function getOrderById(oid) {
+            var r = db.exec("SELECT order_id,sp_username,sp_name,shop_name,shop_phone,shop_location,shop_lat,shop_lng,subtotal,discount,total,load_weight,order_date,status,bill_number,created_at FROM orders WHERE order_id='" + esc(oid) + "'");
+            if (!r.length) return null;
+            var row = r[0].values[0];
+            return { id: row[0], sp: row[1], spName: row[2], shop: { name: row[3], phone: row[4], location: row[5], lat: row[6], lng: row[7] }, subtotal: row[8], discount: row[9], total: row[10], load: row[11], date: row[12], status: row[13] || 'open', billNo: row[14], ts: row[15] };
+        }
+
+        function getAssetById(id) {
+            var r = db.exec("SELECT id,shop_name,shop_phone,shop_address,asset_number,photo,notes,created_at,created_by FROM assets WHERE id=" + id);
+            if (!r.length) return null;
+            var row = r[0].values[0];
+            return { id: row[0], shopName: row[1], shopPhone: row[2], shopAddress: row[3], assetNumber: row[4], photo: row[5], notes: row[6], createdAt: row[7], createdBy: row[8] };
+        }
+
+        function getAllAssets() {
+            var r = db.exec("SELECT id,shop_name,shop_phone,shop_address,asset_number,notes,created_at,created_by FROM assets ORDER BY created_at DESC");
+            if (!r.length) return [];
+            return r[0].values.map(function(row) { return { id: row[0], shopName: row[1], shopPhone: row[2], shopAddress: row[3], assetNumber: row[4], notes: row[5], createdAt: row[6], createdBy: row[7] } });
+        }
+
+        function getAllSalesPersons() {
+            var r = db.exec("SELECT DISTINCT username,name,role,area FROM users WHERE is_active=1 AND role IN ('sales','ase') ORDER BY name");
+            if (!r.length) return [];
+            return r[0].values.map(function(row) { return { username: row[0], name: row[1], role: row[2], area: row[3] } });
+        }
+
+        // ============================================================
+        // CORE FUNCTIONS
+        // ============================================================
+        function changeQty(pid, delta) { var item = S.form.items.find(function(i) { return i.pid === pid; }); if (!item) { item = { pid: pid, cases: 0 }; S.form.items.push(item) } item.cases = Math.max(0, item.cases + delta); render() }
+        function setQty(pid, val) { var item = S.form.items.find(function(i) { return i.pid === pid; }); if (!item) { item = { pid: pid, cases: 0 }; S.form.items.push(item) } item.cases = Math.max(0, parseInt(val) || 0); render() }
+        function resetForm() { S.form = { shopName: '', shopPhone: '', shopLocation: '', shopLat: null, shopLng: null, items: [], discount: 0 }; S.editingOrderId = null; S.cartOpen = false; S.catFilter = 'All'; S.search = '' }
+        function cancelEdit() { resetForm(); S.view = 'new-order'; render() }
+
+        function getLocation() {
+            if (!navigator.geolocation) { toast('Geolocation not supported', 'error'); return }
+            toast('Getting location...', 'info');
+            navigator.geolocation.getCurrentPosition(function(pos) { S.form.shopLat = pos.coords.latitude; S.form.shopLng = pos.coords.longitude; toast('GPS captured!'); render() }, function(err) { toast('Could not get location', 'error') }, { enableHighAccuracy: true, timeout: 10000 });
+        }
+
+        function editOrder(oid) {
+            var r = db.exec("SELECT shop_name,shop_phone,shop_location,shop_lat,shop_lng,discount FROM orders WHERE order_id='" + esc(oid) + "'");
+            if (!r.length) return;
+            var row = r[0].values[0];
+            S.form.shopName = row[0];
+            S.form.shopPhone = row[1];
+            S.form.shopLocation = row[2];
+            S.form.shopLat = row[3];
+            S.form.shopLng = row[4];
+            S.form.discount = row[5];
+            var items = getOrderItems(oid);
+            var prods = getProducts();
+            S.form.items = items.map(function(it) { var p = prods.find(function(pr) { return pr.name === it.name && pr.pack === it.pack }); return { pid: p ? p.id : 0, cases: it.cases } }).filter(function(i) { return i.pid > 0 });
+            S.editingOrderId = oid;
+            S.view = 'new-order';
+            render();
+        }
+
+        // ============================================================
+        // SUBMIT ORDER WITH FIREBASE SYNC
+        // ============================================================
+        async function submitOrder() {
+            var items = getCartItems();
+            if (!S.form.shopName.trim()) { toast('Please enter shop name', 'error'); return }
+            if (!S.form.shopPhone.trim()) { toast('Please enter phone number', 'error'); return }
+            if (!S.form.shopLocation.trim()) { toast('Please enter shop location', 'error'); return }
+            if (items.length === 0) { toast('Please add at least one product', 'error'); return }
+
+            var sub = cartTotal();
+            var discAmt = Math.round(S.form.discount || 0);
+            var total = sub - discAmt;
+            var load = cartLoad();
+            var oid = S.editingOrderId || genOrderId();
+
+            S.syncStatus = 'syncing';
+            render();
+
+            try {
+                if (S.editingOrderId) {
+                    db.run("DELETE FROM order_items WHERE order_id='" + oid + "'");
+                    db.run("UPDATE orders SET shop_name='" + esc(S.form.shopName) + "',shop_phone='" + esc(S.form.shopPhone) + "',shop_location='" + esc(S.form.shopLocation) + "',shop_lat=" + (S.form.shopLat || 'NULL') + ",shop_lng=" + (S.form.shopLng || 'NULL') + ",subtotal=" + sub + ",discount=" + discAmt + ",total=" + total + ",load_weight=" + load + " WHERE order_id='" + oid + "'");
+                } else {
+                    db.run("INSERT INTO orders (order_id,sp_username,sp_name,shop_name,shop_phone,shop_location,shop_lat,shop_lng,subtotal,discount,total,load_weight,order_date) VALUES ('" + oid + "','" + esc(S.user) + "','" + esc(S.userName) + "','" + esc(S.form.shopName) + "','" + esc(S.form.shopPhone) + "','" + esc(S.form.shopLocation) + "'," + (S.form.shopLat || 'NULL') + "," + (S.form.shopLng || 'NULL') + "," + sub + "," + discAmt + "," + total + "," + load + ",'" + today() + "')");
+                }
+                items.forEach(function(i) { var p = getP(i.pid); if (!p) return; var lt = p.price ? i.cases * p.price : 0; db.run("INSERT INTO order_items (order_id,product_id,product_name,pack,cases,units_per_case,unit_price,line_total) VALUES ('" + oid + "'," + p.id + ",'" + esc(p.name) + "','" + esc(p.pack) + "'," + i.cases + "," + p.units + "," + (p.price || 'NULL') + "," + lt + ")") });
+                saveDB();
+
+                await syncOrderToFirestore(oid);
+
+                S.syncStatus = 'synced';
+                toast(S.editingOrderId ? '✅ Order updated & synced!' : '✅ Order submitted & synced!');
+                resetForm();
+                if (S.role === 'sales') S.view = 'my-orders';
+                else S.view = 'ase-dashboard';
+                render();
+            } catch (e) {
+                console.error(e);
+                S.syncStatus = 'error';
+                toast('Error: ' + e.message, 'error');
+                render();
+            }
+        }
+
+        // ============================================================
+        // CLOSE ORDER WITH FIREBASE SYNC
+        // ============================================================
+        async function closeOrder(oid) {
+            S.syncStatus = 'syncing';
+            render();
+            try {
+                db.run("UPDATE orders SET status='closed' WHERE order_id='" + esc(oid) + "'");
+                saveDB();
+                await syncOrderToFirestore(oid);
+                S.syncStatus = 'synced';
+                toast('✅ Order delivered & synced');
+                render();
+            } catch (e) {
+                S.syncStatus = 'error';
+                toast('Error: ' + e.message, 'error');
+                render();
+            }
+        }
+
+        // ============================================================
+        // DELETE ORDER WITH FIREBASE SYNC
+        // ============================================================
+        async function deleteOrder(oid) {
+            if (!confirm('Delete this order permanently?')) return;
+            S.syncStatus = 'syncing';
+            render();
+            try {
+                db.run("DELETE FROM order_items WHERE order_id='" + esc(oid) + "'");
+                db.run("DELETE FROM orders WHERE order_id='" + esc(oid) + "'");
+                saveDB();
+                if (firestore) {
+                    await firestore.collection('orders').doc(oid).delete();
+                    const snapshot = await firestore.collection('order_items').where('orderId', '==', oid).get();
+                    const batch = firestore.batch();
+                    snapshot.forEach(doc => batch.delete(doc.ref));
+                    await batch.commit();
+                }
+                S.syncStatus = 'synced';
+                toast('🗑️ Order deleted from local & cloud', 'info');
+                render();
+            } catch (e) {
+                S.syncStatus = 'error';
+                toast('Error: ' + e.message, 'error');
+                render();
+            }
+        }
+
+        // ============================================================
+        // SAVE ASSET WITH FIREBASE STORAGE
+        // ============================================================
+        async function saveAsset() {
+            var shopName = document.getElementById('ast-shop').value.trim();
+            var shopPhone = document.getElementById('ast-phone').value.trim();
+            var shopAddress = document.getElementById('ast-address').value.trim();
+            var assetNumber = document.getElementById('ast-number').value.trim();
+            var notes = document.getElementById('ast-notes').value.trim();
+            if (!shopName || !assetNumber) { toast('Fill required fields', 'error'); return }
+            
+            S.syncStatus = 'syncing';
+            S.isUploading = true;
+            S.uploadProgress = 0;
+            render();
+            
+            try {
+                var assetId;
+                var photoURL = S.assetPhoto || '';
+                
+                // Upload new photo to Firebase Storage if there's a new file
+                if (S.assetFile && storage) {
+                    try {
+                        // Check if we have an existing photo to delete
+                        if (S.editingAsset && S.editingAsset.photo && S.editingAsset.photo.includes('firebasestorage')) {
+                            try {
+                                var oldRef = storage.refFromURL(S.editingAsset.photo);
+                                await oldRef.delete();
+                            } catch (e) {
+                                console.warn('Could not delete old photo:', e);
+                            }
+                        }
+                        
+                        // Upload new photo
+                        const fileRef = storage.ref(`assets/${assetNumber}_${Date.now()}.jpg`);
+                        const uploadTask = fileRef.put(S.assetFile);
+                        
+                        // Track upload progress
+                        uploadTask.on('state_changed', 
+                            function(snapshot) {
+                                var progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+                                S.uploadProgress = progress;
+                                render();
+                            },
+                            function(error) {
+                                console.error('Upload error:', error);
+                                toast('Photo upload failed: ' + error.message, 'error');
+                            }
+                        );
+                        
+                        await uploadTask;
+                        photoURL = await fileRef.getDownloadURL();
+                        S.assetPhotoPreview = photoURL;
+                        toast('📸 Photo uploaded successfully!', 'success');
+                    } catch (e) {
+                        console.error('Storage error:', e);
+                        toast('Photo upload failed: ' + e.message, 'error');
+                        // Continue with asset creation even if photo upload fails
+                        photoURL = S.assetPhoto || '';
+                    }
+                }
+                
+                S.uploadProgress = 100;
+                render();
+                
+                // Save to SQLite
+                if (S.editingAsset) {
+                    db.run("UPDATE assets SET shop_name='" + esc(shopName) + "',shop_phone='" + esc(shopPhone) + "',shop_address='" + esc(shopAddress) + "',asset_number='" + esc(assetNumber) + "',photo='" + esc(photoURL) + "',notes='" + esc(notes) + "' WHERE id=" + S.editingAsset.id);
+                    assetId = S.editingAsset.id;
+                } else {
+                    db.run("INSERT INTO assets (shop_name,shop_phone,shop_address,asset_number,photo,notes,created_by) VALUES ('" + esc(shopName) + "','" + esc(shopPhone) + "','" + esc(shopAddress) + "','" + esc(assetNumber) + "','" + esc(photoURL) + "','" + esc(notes) + "','" + esc(S.user) + "')");
+                    assetId = db.exec("SELECT last_insert_rowid()")[0].values[0][0];
+                }
+                saveDB();
+
+                // Sync to Firestore with photo URL
+                if (firestore) {
+                    await firestore.collection('assets').doc(String(assetId)).set({
+                        id: assetId,
+                        shopName: shopName,
+                        shopPhone: shopPhone,
+                        shopAddress: shopAddress,
+                        assetNumber: assetNumber,
+                        photo: photoURL,
+                        notes: notes,
+                        createdBy: S.user,
+                        createdAt: new Date().toISOString()
+                    }, { merge: true });
+                }
+
+                S.syncStatus = 'synced';
+                S.isUploading = false;
+                S.uploadProgress = 0;
+                toast(S.editingAsset ? '✅ Asset updated & synced!' : '✅ Asset added & synced!');
+                S.assetModal = null;
+                S.editingAsset = null;
+                S.assetPhoto = '';
+                S.assetPhotoPreview = '';
+                S.assetFile = null;
+                render();
+            } catch (e) {
+                console.error(e);
+                S.syncStatus = 'error';
+                S.isUploading = false;
+                S.uploadProgress = 0;
+                toast('Error: ' + e.message, 'error');
+                render();
+            }
+        }
+
+        // ============================================================
+        // DELETE ASSET WITH FIREBASE STORAGE CLEANUP
+        // ============================================================
+        async function deleteAsset(id) {
+            if (!confirm('Delete this asset entry?')) return;
+            
+            S.syncStatus = 'syncing';
+            render();
+            
+            try {
+                var asset = getAssetById(id);
+                
+                // Delete photo from Firebase Storage if it exists
+                if (asset && asset.photo && storage && asset.photo.includes('firebasestorage')) {
+                    try {
+                        var ref = storage.refFromURL(asset.photo);
+                        await ref.delete();
+                        toast('🗑️ Photo deleted from cloud', 'info');
+                    } catch (e) {
+                        console.warn('Could not delete photo:', e);
+                    }
+                }
+                
+                db.run("DELETE FROM assets WHERE id=" + id);
+                saveDB();
+
+                if (firestore) {
+                    await firestore.collection('assets').doc(String(id)).delete();
+                }
+
+                S.syncStatus = 'synced';
+                toast('🗑️ Asset deleted from local & cloud', 'info');
+                if (S.assetViewId === id) { S.assetViewId = null }
+                render();
+            } catch (e) {
+                S.syncStatus = 'error';
+                toast('Error: ' + e.message, 'error');
+                render();
+            }
+        }
+
+        // ============================================================
+        // SAVE PRODUCT WITH FIREBASE SYNC
+        // ============================================================
+        async function saveProduct() {
+            var name = document.getElementById('pd-name').value.trim();
+            var pack = document.getElementById('pd-pack').value.trim();
+            var units = parseInt(document.getElementById('pd-units').value) || 24;
+            var price = document.getElementById('pd-price').value ? parseFloat(document.getElementById('pd-price').value) : null;
+            var cat = document.getElementById('pd-cat').value;
+            var sku = document.getElementById('pd-sku').value.trim().toUpperCase();
+            if (!name || !pack || !cat || !sku) { toast('Fill all required fields', 'error'); return }
+            
+            var existSku = db.exec("SELECT id FROM products WHERE sku='" + esc(sku) + "'" + (S.editingProduct ? " AND id!=" + S.editingProduct.id : ''));
+            if (existSku.length) { toast('SKU already exists', 'error'); return }
+            
+            S.syncStatus = 'syncing';
+            render();
+            
+            try {
+                var productId;
+                if (S.editingProduct) {
+                    if (S.editingProduct.sku !== sku) db.run("INSERT INTO old_skus (product_id,old_sku,product_name,changed_by) VALUES (" + S.editingProduct.id + ",'" + esc(S.editingProduct.sku) + "','" + esc(name) + "','" + esc(S.user) + "')");
+                    db.run("UPDATE products SET sku='" + esc(sku) + "',name='" + esc(name) + "',pack='" + esc(pack) + "',units=" + units + ",price=" + (price || 'NULL') + ",category='" + esc(cat) + "',updated_at=datetime('now','localtime') WHERE id=" + S.editingProduct.id);
+                    productId = S.editingProduct.id;
+                } else {
+                    db.run("INSERT INTO products (sku,name,pack,units,price,category) VALUES ('" + esc(sku) + "','" + esc(name) + "','" + esc(pack) + "'," + units + "," + (price || 'NULL') + ",'" + esc(cat) + "')");
+                    productId = db.exec("SELECT last_insert_rowid()")[0].values[0][0];
+                }
+                saveDB();
+
+                await syncProductToFirestore(productId);
+
+                S.syncStatus = 'synced';
+                toast(S.editingProduct ? '✅ Product updated & synced!' : '✅ Product added & synced!');
+                S.productModal = null;
+                S.editingProduct = null;
+                render();
+            } catch (e) {
+                S.syncStatus = 'error';
+                toast('Error: ' + e.message, 'error');
+                render();
+            }
+        }
+
+        // ============================================================
+        // LOGIN / LOGOUT
+        // ============================================================
+        function handleLogin() {
+            var username = document.getElementById('login-user').value.trim().toLowerCase();
+            var password = document.getElementById('login-pass').value;
+            if (!username || !password) { toast('Please enter username and password', 'error'); return }
+            var r = db.exec("SELECT id,username,name,role,area FROM users WHERE username='" + esc(username) + "' AND password='" + esc(password) + "' AND is_active=1");
+            if (!r.length) { toast('Invalid credentials', 'error'); return }
+            var row = r[0].values[0];
+            S.user = row[1];
+            S.userName = row[2];
+            S.role = row[3];
+            S.view = 'app';
+            S.adminDate = today();
+            S.loadSelection = {};
+            S._skipEnsure = false;
+            if (S.role === 'sales') S.view = 'new-order';
+            else if (S.role === 'ase') S.view = 'ase-dashboard';
+            else S.adminView = 'dashboard';
+            resetForm();
+            toast('Welcome, ' + S.userName + '!');
+            render();
+        }
+
+        function logout() { S.user = null; S.role = null; S.userName = ''; S.view = 'login'; S.adminView = 'dashboard'; S.adminSP = ''; S.orderDetailId = null; S.loadSelection = {}; S._skipEnsure = false; S.assetPhoto = ''; S.assetPhotoPreview = ''; S.assetFile = null; S.moreMenuOpen = false; S.isUploading = false; S.uploadProgress = 0; resetForm(); render() }
+
+        // ============================================================
+        // RENDER FUNCTIONS
+        // ============================================================
+        function render() {
+            var app = document.getElementById('app');
+            if (!app) { console.error('App element not found!'); return; }
+            
+            if (!S.dbReady) {
+                app.innerHTML = '<div class="flex items-center justify-center min-h-screen bg-surface"><div class="text-center"><i class="fa-solid fa-spinner spinner text-pri text-3xl"></i><p class="mt-3 text-gray-500 text-sm">Loading database...</p></div></div>';
+                return;
+            }
+            if (S.view === 'login') { renderLogin(); return; }
+            if (S.role === 'sales') { renderSalesApp(); return; }
+            if (S.role === 'ase') { renderASEApp(); return; }
+            if (S.role === 'admin') { renderAdminApp(); return; }
+        }
+
+        function renderLogin() {
+            var app = document.getElementById('app');
+            if (!app) return;
+            var firm = getFirm();
+            app.innerHTML =
+                '<div class="min-h-screen bg-surface flex items-center justify-center p-4">' +
+                '<div class="bg-white rounded-2xl shadow-lg w-full max-w-sm overflow-hidden fade-in">' +
+                '<div class="bg-pri p-6 text-center">' +
+                '<i class="fa-solid fa-truck-fast text-white text-3xl mb-2"></i>' +
+                '<h1 class="font-display text-white text-xl font-bold">' + escH(firm.name) + '</h1>' +
+                '<p class="text-pri-100 text-xs mt-1">Distribution Management System</p>' +
+                '</div><div class="p-5">' +
+                '<div class="mb-4"><label class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Username</label><input id="login-user" type="text" class="w-full mt-1 px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-pri focus:border-transparent" placeholder="Enter username" autocomplete="username"></div>' +
+                '<div class="mb-5"><label class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Password</label><input id="login-pass" type="password" class="w-full mt-1 px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-pri focus:border-transparent" placeholder="Enter password" autocomplete="current-password"></div>' +
+                '<button onclick="handleLogin()" class="w-full bg-pri hover:bg-pri-dark text-white py-3 rounded-xl font-semibold text-sm transition btn-press touch-target">Sign In</button>' +
+                '</div></div></div>';
+        }
+
+        function getSyncStatusHtml() {
+            var statusMap = {
+                'synced': '<span class="sync-status synced"><i class="fa-solid fa-check-circle"></i> Synced</span>',
+                'syncing': '<span class="sync-status syncing"><i class="fa-solid fa-spinner spinner"></i> Syncing...</span>',
+                'error': '<span class="sync-status error"><i class="fa-solid fa-exclamation-circle"></i> Error</span>'
+            };
+            return statusMap[S.syncStatus] || statusMap['synced'];
+        }
+
+        // ============================================================
+        // SALES APP
+        // ============================================================
+        function renderSalesApp() {
+            var app = document.getElementById('app');
+            if (!app) return;
+            
+            var tabs = [
+                { id: 'new-order', icon: 'fa-cart-plus', label: 'New Order' },
+                { id: 'my-orders', icon: 'fa-list-check', label: 'My Orders' },
+                { id: 'sales-load', icon: 'fa-truck-ramp-box', label: 'Load Sheet' },
+                { id: 'assets', icon: 'fa-image', label: 'Assets' }
+            ];
+            var content = '';
+            if (S.view === 'new-order') content = renderNewOrder();
+            else if (S.view === 'my-orders') content = renderMyOrders();
+            else if (S.view === 'sales-load') content = renderSalesLoadSheet();
+            else if (S.view === 'assets') content = renderSalesAssets();
+            else { S.view = 'new-order'; content = renderNewOrder() }
+
+            var syncStatusHtml = getSyncStatusHtml();
+
+            var navHtml =
+                '<div class="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 bottom-nav z-50 no-print"><div class="max-w-lg mx-auto flex">' +
+                tabs.map(function(t) {
+                    return '<div class="mobile-tab flex-1 ' + (S.view === t.id ? 'active' : '') + '" onclick="S.view=\'' + t.id + '\';S.cartOpen=false;render();"><i class="fa-solid ' + t.icon + '"></i><span>' + t.label + '</span></div>';
+                }).join('') + '</div></div>';
+
+            app.innerHTML =
+                '<div class="pb-20 min-h-screen bg-surface">' +
+                '<div class="bg-pri text-white px-4 py-3 flex items-center justify-between no-print sticky top-0 z-40">' +
+                '<div><h1 class="font-display font-bold text-sm">' + escH(S.userName) + '</h1><p class="text-pri-100 text-[10px]">Sales Person</p></div>' +
+                '<div class="flex items-center gap-2">' + syncStatusHtml +
+                '<button onclick="logout()" class="text-pri-100 hover:text-white text-xs flex items-center gap-1 touch-target"><i class="fa-solid fa-right-from-bracket"></i><span class="hidden sm:inline">Logout</span></button>' +
+                '</div></div>' +
+                '<div class="fade-in">' + content + '</div>' +
+                navHtml +
+                '</div>';
+            renderModals();
+        }
+
+        // ============================================================
+        // NEW ORDER
+        // ============================================================
+        function renderNewOrder() {
+            var prods = getProducts();
+            var cats = getCategories();
+            var filtered = S.catFilter === 'All' ? prods : prods.filter(function(p) { return p.cat === S.catFilter });
+            if (S.search) { var q = S.search.toLowerCase(); filtered = filtered.filter(function(p) { return p.name.toLowerCase().indexOf(q) > -1 || p.pack.toLowerCase().indexOf(q) > -1 || p.sku.toLowerCase().indexOf(q) > -1 }) }
+            var items = getCartItems();
+            var total = cartTotal();
+            var load = cartLoad();
+            var count = cartCount();
+
+            var catPills = '<div class="flex gap-2 overflow-x-auto pb-2 no-print" style="-webkit-overflow-scrolling:touch">' +
+                cats.map(function(c) {
+                    return '<button class="cat-pill px-3 py-1.5 rounded-full text-xs font-medium border border-gray-200 bg-white ' + (S.catFilter === c ? 'active' : 'text-gray-600') + '" onclick="S.catFilter=\'' + c + '\';render();">' + c + '</button>';
+                }).join('') + '</div>';
+
+            var prodGrid = '<div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">';
+            filtered.forEach(function(p) {
+                var ci = S.form.items.find(function(i) { return i.pid === p.id });
+                var qty = ci ? ci.cases : 0;
+                var hasQ = qty > 0;
+                prodGrid += '<div class="product-card bg-white rounded-xl border-2 ' + (hasQ ? 'has-qty border-pri' : 'border-gray-100') + ' p-2.5 card-shadow">' +
+                    '<div class="flex items-start justify-between mb-1"><span class="text-[10px] text-gray-400">' + escH(p.sku) + '</span>' + (hasQ ? '<span class="bg-pri text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">' + qty + '</span>' : '') + '</div>' +
+                    '<div class="font-semibold text-xs leading-tight mb-0.5">' + escH(p.name) + '</div>' +
+                    '<div class="text-[10px] text-gray-500 mb-1">' + escH(p.pack) + ' x ' + p.units + '</div>' +
+                    '<div class="text-xs font-bold text-pri mb-2">' + (p.price ? fmt(p.price) : 'N/A') + '</div>' +
+                    '<div class="flex items-center justify-center gap-2">' +
+                    '<div class="qty-btn bg-gray-100 text-gray-700" onclick="changeQty(' + p.id + ',-1)">-</div>' +
+                    '<input type="number" value="' + qty + '" class="w-10 text-center text-sm font-bold bg-gray-50 border border-gray-200 rounded-lg py-1" onchange="setQty(' + p.id + ',this.value)" onclick="this.select()">' +
+                    '<div class="qty-btn bg-pri text-white" onclick="changeQty(' + p.id + ',1)">+</div>' +
+                    '</div></div>';
+            });
+            prodGrid += '</div>';
+
+            var shopForm =
+                '<div class="bg-white rounded-xl p-3 card-shadow mb-3 no-print">' +
+                '<h3 class="font-display font-semibold text-sm mb-3 flex items-center gap-2"><i class="fa-solid fa-store text-pri"></i>Shop Details</h3>' +
+                '<div class="grid grid-cols-1 sm:grid-cols-2 gap-2">' +
+                '<input id="f-shop" type="text" value="' + escH(S.form.shopName) + '" placeholder="Shop Name *" class="px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-pri" onchange="S.form.shopName=this.value">' +
+                '<input id="f-phone" type="tel" value="' + escH(S.form.shopPhone) + '" placeholder="Phone Number *" class="px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-pri" onchange="S.form.shopPhone=this.value">' +
+                '<input id="f-loc" type="text" value="' + escH(S.form.shopLocation) + '" placeholder="Location *" class="px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-pri sm:col-span-2" onchange="S.form.shopLocation=this.value">' +
+                '</div>' +
+                '<div class="flex items-center gap-2 mt-2">' +
+                '<button onclick="getLocation()" class="text-xs text-pri flex items-center gap-1 touch-target"><i class="fa-solid fa-location-dot"></i>GPS</button>' +
+                (S.form.shopLat ? '<span class="text-[10px] text-green-600"><i class="fa-solid fa-check"></i> Captured</span>' : '') +
+                (S.editingOrderId ? '<span class="ml-auto text-[10px] text-acc font-semibold"><i class="fa-solid fa-pen"></i> Editing: ' + S.editingOrderId + '</span>' : '') +
+                '</div></div>';
+
+            var searchBar =
+                '<div class="mb-2 no-print"><div class="relative"><i class="fa-solid fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs"></i><input type="text" value="' + escH(S.search) + '" placeholder="Search products..." class="w-full pl-8 pr-3 py-2 border border-gray-200 rounded-xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-pri" oninput="S.search=this.value;render();"></div></div>';
+
+            var cartBarHtml = '';
+            if (items.length > 0) cartBarHtml = renderCartBar(items, total, load, count);
+
+            return '<div class="p-3 max-w-4xl mx-auto pb-24">' + shopForm + searchBar + catPills + prodGrid + '</div>' + cartBarHtml;
+        }
+
+        function renderCartBar(items, total, load, count) {
+            return '<div class="cart-bar-fixed" style="bottom:64px;">' +
+                (S.cartOpen ? renderCartPanel(items, total, load) : '') +
+                '<div class="bg-pri-dark text-white px-3 py-2.5 flex items-center justify-between cursor-pointer rounded-t-xl mx-2 shadow-lg" onclick="S.cartOpen=!S.cartOpen;render();">' +
+                '<div class="flex items-center gap-3"><div class="bg-white/20 rounded-lg px-2.5 py-1 text-xs font-bold">' + count + ' Cases</div><div class="text-xs"><div class="font-bold">' + fmt(total) + '</div><div class="text-pri-100 text-[10px]">' + fmtKg(load) + '</div></div></div>' +
+                '<div class="flex items-center gap-2"><span class="text-xs text-pri-100">Tap</span><i class="fa-solid ' + (S.cartOpen ? 'fa-chevron-down' : 'fa-chevron-up') + ' text-xs"></i></div>' +
+                '</div></div>';
+        }
+
+        function renderCartPanel(items, total, load) {
+            var disc = S.form.discount || 0;
+            var rows = items.map(function(i) { var p = getP(i.pid); if (!p) return ''; return '<div class="flex items-center justify-between py-1.5 border-b border-gray-50"><div class="flex-1 min-w-0"><div class="text-xs font-medium truncate">' + escH(p.name) + ' <span class="text-gray-400">' + escH(p.pack) + '</span></div></div><div class="flex items-center gap-2 ml-2"><span class="text-xs font-bold text-pri">' + i.cases + 'cs</span><span class="text-[10px] text-gray-400">' + fmtN(i.cases * p.price) + '</span><i class="fa-solid fa-xmark text-gray-300 text-xs cursor-pointer" onclick="changeQty(' + i.pid + ',' + (-i.cases) + ')"></i></div></div>' }).join('');
+            return '<div class="bg-white rounded-t-2xl shadow-xl max-h-[50vh] overflow-y-auto" style="animation:slideUp .2s ease">' +
+                '<div class="sticky top-0 bg-white px-3 py-2 border-b border-gray-100 flex items-center justify-between"><span class="font-display font-semibold text-sm">Cart (' + items.length + ' items)</span><i class="fa-solid fa-xmark text-gray-400 cursor-pointer touch-target" onclick="S.cartOpen=false;render();"></i></div>' +
+                '<div class="px-3">' + rows + '</div>' +
+                '<div class="px-3 py-2 border-t border-gray-100 bg-gray-50">' +
+                '<div class="flex items-center gap-2 mb-2"><label class="text-[10px] text-gray-500">Discount (₹):</label><input type="number" value="' + disc + '" class="w-24 px-2 py-1 border border-gray-200 rounded-lg text-xs" onchange="S.form.discount=parseInt(this.value)||0;render();"></div>' +
+                '<div class="flex justify-between text-xs mb-1"><span>Subtotal</span><span class="font-semibold">' + fmt(total) + '</span></div>' + (disc > 0 ? '<div class="flex justify-between text-xs mb-1 text-red-500"><span>Discount</span><span>- ' + fmtN(disc) + '</span></div>' : '') +
+                '<div class="flex justify-between text-sm font-bold border-t border-gray-200 pt-1 mt-1"><span>Net Total</span><span class="text-pri">' + fmt(total - disc) + '</span></div>' +
+                '<div class="flex gap-2 mt-3">' +
+                (S.editingOrderId ? '<button onclick="cancelEdit()" class="flex-1 py-2.5 rounded-xl border border-gray-300 text-gray-600 text-xs font-semibold btn-press touch-target">Cancel Edit</button>' : '') +
+                '<button onclick="submitOrder()" class="flex-1 py-2.5 rounded-xl bg-pri text-white text-xs font-semibold btn-press touch-target ' + (S.editingOrderId ? '' : 'col-span-2 sm:col-span-1') + '">' + (S.editingOrderId ? 'Update Order' : 'Submit Order') + '</button>' +
+                '</div></div></div>';
+        }
+
+        function renderMyOrders() {
+            var orders = db.exec("SELECT order_id,shop_name,shop_phone,shop_location,subtotal,discount,total,load_weight,order_date,status,created_at FROM orders WHERE sp_username='" + esc(S.user) + "' ORDER BY created_at DESC");
+            if (!orders.length || !orders[0].values.length) return '<div class="p-4 text-center text-gray-400 mt-16"><i class="fa-solid fa-inbox text-4xl mb-3"></i><p class="text-sm">No orders yet</p></div>';
+            var cards = orders[0].values.map(function(o) {
+                var statusClr = o[9] === 'closed' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700';
+                var statusTxt = o[9] === 'closed' ? 'Delivered' : 'Open';
+                return '<div class="bg-white rounded-xl p-3 card-shadow mb-2 fade-in">' +
+                    '<div class="flex items-start justify-between mb-1.5"><div class="flex-1 min-w-0"><div class="font-semibold text-sm truncate">' + escH(o[1]) + '</div><div class="text-[10px] text-gray-400">' + escH(o[3]) + ' | ' + escH(o[2]) + '</div></div><span class="text-[10px] font-semibold px-2 py-0.5 rounded-full ' + statusClr + ' flex-shrink-0 ml-2">' + statusTxt + '</span></div>' +
+                    '<div class="flex items-center justify-between"><div class="text-xs text-gray-500">' + fmtDate(o[8]) + ' | ' + fmtKg(o[7]) + '</div><div class="font-bold text-sm text-pri">' + fmt(o[6]) + '</div></div>' +
+                    '<div class="flex gap-1.5 mt-2 pt-2 border-t border-gray-50">' +
+                    '<button onclick="viewOrderDetail(\'' + o[0] + '\')" class="text-[10px] px-2.5 py-1.5 rounded-lg bg-gray-50 text-gray-600 btn-press touch-target"><i class="fa-solid fa-eye mr-1"></i>View</button>' +
+                    '<button onclick="printBill(\'' + o[0] + '\')" class="text-[10px] px-2.5 py-1.5 rounded-lg bg-gray-50 text-gray-600 btn-press touch-target"><i class="fa-solid fa-print mr-1"></i>Bill</button>' +
+                    (o[9] === 'open' ? '<button onclick="editOrder(\'' + o[0] + '\')" class="text-[10px] px-2.5 py-1.5 rounded-lg bg-pri-50 text-pri btn-press touch-target"><i class="fa-solid fa-pen mr-1"></i>Edit</button>' : '') +
+                    (o[9] === 'open' ? '<button onclick="closeOrder(\'' + o[0] + '\')" class="text-[10px] px-2.5 py-1.5 rounded-lg bg-green-50 text-green-700 btn-press touch-target"><i class="fa-solid fa-check mr-1"></i>Deliver</button>' : '') +
+                    '<button onclick="deleteOrder(\'' + o[0] + '\')" class="text-[10px] px-2.5 py-1.5 rounded-lg bg-red-50 text-red-600 btn-press touch-target ml-auto"><i class="fa-solid fa-trash"></i></button>' +
+                    '</div></div>';
+            }).join('');
+            return '<div class="p-3 max-w-2xl mx-auto"><h2 class="font-display font-bold text-base mb-3">My Orders</h2>' + cards + '</div>';
+        }
+
+        // ============================================================
+        // SALES LOAD SHEET
+        // ============================================================
+        function renderSalesLoadSheet() {
+            var outlets = db.exec("SELECT order_id,shop_name FROM orders WHERE sp_username='" + esc(S.user) + "' AND order_date='" + today() + "' ORDER BY shop_name");
+            var outletData = outlets.length ? outlets[0].values.map(function(row) { return { orderId: row[0], shopName: row[1] } }) : [];
+            var selIds = Object.keys(S.loadSelection).filter(function(k) { return S.loadSelection[k] });
+
+            var sheet = getLoadSheet(today(), S.user, selIds);
+
+            var outletListHtml =
+                '<div class="bg-white rounded-xl p-3 card-shadow mb-3">' +
+                '<div class="flex items-center justify-between mb-2"><h3 class="font-display font-semibold text-sm">Select Outlets (' + selIds.length + '/' + outletData.length + ')</h3>' +
+                '<div class="flex gap-1.5"><button onclick="selectAllOutlets()" class="text-[10px] px-2.5 py-1.5 rounded-lg bg-pri text-white btn-press touch-target">Select All</button><button onclick="clearOutlets()" class="text-[10px] px-2.5 py-1.5 rounded-lg bg-gray-100 text-gray-600 btn-press touch-target">Clear</button></div></div>';
+            if (!outletData.length) outletListHtml += '<p class="text-xs text-gray-400 text-center py-4">No orders today</p>';
+            else outletListHtml += '<div class="max-h-40 overflow-y-auto space-y-1">' + outletData.map(function(o) {
+                var checked = selIds.indexOf(o.orderId) > -1;
+                return '<label class="flex items-center gap-2.5 py-1.5 px-2 rounded-lg cursor-pointer ' + (checked ? 'bg-pri-50' : 'hover:bg-gray-50') + ' touch-target"><input type="checkbox" ' + (checked ? 'checked' : '') + ' onchange="toggleOutlet(\'' + o.orderId + '\')" class="w-4 h-4 accent-pri rounded"><span class="text-xs flex-1">' + escH(o.shopName) + '</span></label>';
+            }).join('') + '</div>';
+            outletListHtml += '</div>';
+
+            var loadTable = '<div class="bg-white rounded-xl card-shadow overflow-hidden mb-3">';
+            if (sheet.items.length) {
+                var lastCat = '';
+                var srNum = 0;
+                var tRows = '';
+                sortItems(sheet.items).forEach(function(it) {
+                    if (it.cat !== lastCat) { srNum = 0; tRows += '<tr class="rpt-cat-row"><td colspan="4" class="!text-[10px]">' + escH(it.cat) + '</td></tr>'; lastCat = it.cat }
+                    srNum++;
+                    tRows += '<tr><td class="!text-[11px]">' + srNum + '</td><td class="!text-[11px]">' + escH(it.name) + '<br><span class="text-gray-400 text-[9px]">' + escH(it.pack) + '</span></td><td class="!text-[11px] text-center">' + it.cases + '</td><td class="!text-[11px] text-right">' + (it.amount ? fmtN(it.amount) : '-') + '</td></tr>';
+                });
+                loadTable += '<div class="overflow-x-auto"><table class="rpt-table w-full"><tr><th>#</th><th>Product</th><th class="text-center">Cases</th><th class="text-right">Amount</th></tr>' + tRows + '</table></div>';
+            } else loadTable += '<div class="p-6 text-center text-gray-400 text-sm"><i class="fa-solid fa-box-open text-2xl mb-2"></i><p>No items</p></div>';
+            loadTable +=
+                '<div class="p-3 bg-gray-50 border-t border-gray-100 grid grid-cols-2 gap-2 text-xs">' +
+                '<div><span class="text-gray-500 block text-[10px]">Cases</span><span class="font-bold">' + sheet.items.reduce(function(s, i) { return s + i.cases }, 0) + '</span></div>' +
+                '<div><span class="text-gray-500 block text-[10px]">Net</span><span class="font-bold text-pri">' + fmtN(sheet.items.reduce(function(s, i) { return s + i.amount }, 0) - sheet.totalDiscount) + '</span></div>' +
+                '</div></div>';
+
+            var printBtn = '<button onclick="printLoadSheet(\'' + today() + '\',\'' + esc(S.user) + '\',\'selected\')" class="w-full py-3 rounded-xl bg-pri text-white font-semibold text-sm btn-press touch-target"><i class="fa-solid fa-print mr-2"></i>Print Load Sheet + Bills</button>';
+
+            return '<div class="p-3 max-w-2xl mx-auto"><h2 class="font-display font-bold text-base mb-3">Load Sheet - ' + fmtDate(today()) + '</h2>' + outletListHtml + loadTable + printBtn + '</div>';
+        }
+
+        function renderSalesAssets() {
+            var assets = getAllAssets().filter(function(a) { return a.createdBy === S.user });
+            var header = '<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3"><h2 class="font-display font-bold text-base">My Assets (' + assets.length + ')</h2><button onclick="S.editingAsset=null;S.assetPhoto=\'\';S.assetPhotoPreview=\'\';S.assetFile=null;S.assetModal=true;render();" class="px-4 py-2 rounded-xl bg-pri text-white text-xs font-semibold btn-press touch-target"><i class="fa-solid fa-plus mr-1"></i>Add Asset</button></div>';
+            var list = assets.map(function(a) {
+                return '<div class="asset-card bg-white rounded-xl p-3 card-shadow mb-2 cursor-pointer" onclick="S.assetViewId=' + a.id + ';render();">' +
+                    '<div class="flex items-start gap-3"><div class="w-10 h-10 rounded-lg bg-acc-50 text-acc flex items-center justify-center flex-shrink-0"><i class="fa-solid fa-image text-sm"></i></div>' +
+                    '<div class="flex-1 min-w-0"><div class="font-semibold text-sm">' + escH(a.assetNumber) + '</div><div class="text-[10px] text-gray-400">' + escH(a.shopName) + (a.shopPhone ? ' | ' + escH(a.shopPhone) : '') + '</div>' + (a.shopAddress ? '<div class="text-[10px] text-gray-400 truncate">' + escH(a.shopAddress) + '</div>' : '') +
+                    '</div></div></div>';
+            }).join('');
+            if (!assets.length) list = '<div class="bg-white rounded-xl card-shadow p-8 text-center text-gray-400 text-sm">No assets found</div>';
+            return '<div class="p-3 max-w-2xl mx-auto">' + header + list + '</div>';
+        }
+
+        // ============================================================
+        // ASE APP
+        // ============================================================
+        function renderASEApp() {
+            var app = document.getElementById('app');
+            if (!app) return;
+            
+            var tabs = [
+                { id: 'ase-dashboard', icon: 'fa-chart-pie', label: 'Dashboard' },
+                { id: 'ase-load', icon: 'fa-truck-ramp-box', label: 'Load Sheet' },
+                { id: 'ase-assets', icon: 'fa-image', label: 'Assets' }
+            ];
+            var content = '';
+            if (S.view === 'ase-dashboard') content = renderASEDashboard();
+            else if (S.view === 'ase-load') content = renderASELoadSheet();
+            else if (S.view === 'ase-assets') content = renderASEAssets();
+            else if (S.view === 'new-order') content = renderNewOrder();
+            else { S.view = 'ase-dashboard'; content = renderASEDashboard() }
+
+            var syncStatusHtml = getSyncStatusHtml();
+
+            var navHtml =
+                '<div class="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 bottom-nav z-50 no-print"><div class="max-w-lg mx-auto flex">' +
+                tabs.map(function(t) {
+                    return '<div class="mobile-tab flex-1 ' + (S.view === t.id ? 'active' : '') + '" onclick="S.view=\'' + t.id + '\';S.cartOpen=false;render();"><i class="fa-solid ' + t.icon + '"></i><span>' + t.label + '</span></div>';
+                }).join('') +
+                '<div class="mobile-tab flex-1 ' + (S.view === 'new-order' ? 'active' : '') + '" onclick="S.view=\'new-order\';S.cartOpen=false;render();"><i class="fa-solid fa-cart-plus"></i><span>New Order</span></div>' +
+                '</div></div>';
+
+            var header =
+                '<div class="bg-pri text-white px-4 py-3 flex items-center justify-between no-print sticky top-0 z-40">' +
+                '<div><h1 class="font-display font-bold text-sm">' + escH(S.userName) + '</h1><p class="text-pri-100 text-[10px]">Area Sales Executive</p></div>' +
+                '<div class="flex items-center gap-2">' + syncStatusHtml +
+                '<button onclick="logout()" class="text-pri-100 hover:text-white text-xs flex items-center gap-1 touch-target"><i class="fa-solid fa-right-from-bracket"></i><span class="hidden sm:inline">Logout</span></button>' +
+                '</div></div>';
+
+            app.innerHTML =
+                '<div class="pb-20 min-h-screen bg-surface">' + header + '<div class="fade-in">' + content + '</div>' + navHtml + '</div>';
+            renderModals();
+        }
+
+        function renderASEDashboard() {
+            var spData = getAllSalesPersons();
+            var orders = db.exec("SELECT order_id,sp_username,sp_name,shop_name,shop_phone,shop_location,subtotal,discount,total,load_weight,order_date,status,created_at FROM orders WHERE order_date='" + esc(S.adminDate) + "'" + (S.adminSP ? " AND sp_username='" + esc(S.adminSP) + "'" : "") + " ORDER BY created_at DESC");
+            var orderData = orders.length ? orders[0].values.map(function(row) { return { id: row[0], sp: row[1], spName: row[2], shop: { name: row[3], phone: row[4], location: row[5] }, subtotal: row[6], discount: row[7], total: row[8], load: row[9], date: row[10], status: row[11] || 'open', ts: row[12] } }) : [];
+
+            var filters =
+                '<div class="bg-white rounded-xl p-3 card-shadow mb-3 space-y-2">' +
+                '<div class="grid grid-cols-2 sm:grid-cols-3 gap-2">' +
+                '<input type="date" value="' + S.adminDate + '" class="px-3 py-2 border border-gray-200 rounded-xl text-sm" onchange="S.adminDate=this.value;S._skipEnsure=true;render();">' +
+                '<select class="px-3 py-2 border border-gray-200 rounded-xl text-sm" onchange="S.adminSP=this.value;S._skipEnsure=true;render();"><option value="">All Sales Persons</option>' +
+                spData.map(function(sp) { return '<option value="' + sp.username + '" ' + (S.adminSP === sp.username ? 'selected' : '') + '>' + escH(sp.name) + '</option>' }).join('') +
+                '</select>' +
+                '<button onclick="S.view=\'new-order\';render();" class="px-3 py-2 rounded-xl bg-pri text-white text-sm font-semibold btn-press touch-target"><i class="fa-solid fa-plus mr-1"></i>New Order</button>' +
+                '</div></div>';
+
+            var list = orderData.map(function(o) {
+                var statusClr = o.status === 'closed' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700';
+                return '<div class="bg-white rounded-xl p-3 card-shadow mb-2"><div class="flex items-start justify-between mb-1"><div class="flex-1 min-w-0"><div class="font-semibold text-sm truncate">' + escH(o.shop.name) + '</div><div class="text-[10px] text-gray-400">' + escH(o.spName) + ' | ' + escH(o.shop.location) + '</div></div><span class="text-[10px] font-semibold px-2 py-0.5 rounded-full ' + statusClr + ' flex-shrink-0 ml-2">' + (o.status === 'closed' ? 'Delivered' : 'Open') + '</span></div>' +
+                    '<div class="flex items-center justify-between text-xs"><span class="text-gray-500">' + fmtDate(o.date) + ' | ' + fmtKg(o.load) + '</span><span class="font-bold text-pri">' + fmt(o.total) + '</span></div>' +
+                    '<div class="flex flex-wrap gap-1.5 mt-2 pt-2 border-t border-gray-50">' +
+                    '<button onclick="viewOrderDetail(\'' + o.id + '\')" class="text-[10px] px-2.5 py-1.5 rounded-lg bg-gray-50 text-gray-600 btn-press touch-target"><i class="fa-solid fa-eye mr-1"></i>View</button>' +
+                    '<button onclick="printBill(\'' + o.id + '\')" class="text-[10px] px-2.5 py-1.5 rounded-lg bg-gray-50 text-gray-600 btn-press touch-target"><i class="fa-solid fa-print mr-1"></i>Bill</button>' +
+                    (o.status === 'open' ? '<button onclick="closeOrder(\'' + o.id + '\')" class="text-[10px] px-2.5 py-1.5 rounded-lg bg-green-50 text-green-700 btn-press touch-target"><i class="fa-solid fa-check mr-1"></i>Deliver</button>' : '') +
+                    (o.sp === S.user ? '<button onclick="editOrder(\'' + o.id + '\')" class="text-[10px] px-2.5 py-1.5 rounded-lg bg-pri-50 text-pri btn-press touch-target"><i class="fa-solid fa-pen mr-1"></i>Edit</button>' : '') +
+                    (o.sp === S.user ? '<button onclick="deleteOrder(\'' + o.id + '\')" class="text-[10px] px-2.5 py-1.5 rounded-lg bg-red-50 text-red-600 btn-press touch-target ml-auto"><i class="fa-solid fa-trash"></i></button>' : '') +
+                    '</div></div>';
+            }).join('');
+
+            return '<div class="p-3 max-w-4xl mx-auto"><h2 class="font-display font-bold text-base mb-3">Orders Dashboard</h2>' + filters + list + '</div>';
+        }
+
+        // ============================================================
+        // ASE LOAD SHEET
+        // ============================================================
+        function renderASELoadSheet() {
+            var spData = getAllSalesPersons();
+            var outlets = db.exec("SELECT order_id,shop_name,sp_name,sp_username,status FROM orders WHERE order_date='" + esc(S.adminDate) + "'" + (S.adminSP ? " AND sp_username='" + esc(S.adminSP) + "'" : "") + " ORDER BY shop_name");
+            var outletData = outlets.length ? outlets[0].values.map(function(row) { return { orderId: row[0], shopName: row[1], spName: row[2], spUsername: row[3], status: row[4] || 'open' } }) : [];
+
+            ensureLoadSelection(outletData);
+            var selIds = getSelectedOrderIds();
+
+            var sheet = getLoadSheet(S.adminDate, S.adminSP, selIds);
+
+            var filters =
+                '<div class="bg-white rounded-xl p-3 card-shadow mb-3"><div class="grid grid-cols-1 sm:grid-cols-3 gap-2">' +
+                '<input type="date" value="' + S.adminDate + '" class="px-3 py-2 border border-gray-200 rounded-xl text-sm" onchange="S.adminDate=this.value;S._skipEnsure=true;render();">' +
+                '<select class="px-3 py-2 border border-gray-200 rounded-xl text-sm" onchange="S.adminSP=this.value;S._skipEnsure=true;render();"><option value="">All Sales Persons</option>' +
+                spData.map(function(sp) { return '<option value="' + sp.username + '" ' + (S.adminSP === sp.username ? 'selected' : '') + '>' + escH(sp.name) + '</option>' }).join('') +
+                '</select>' +
+                '<div class="text-xs text-gray-400 flex items-center justify-end">' + outletData.length + ' outlets</div>' +
+                '</div></div>';
+
+            var outletListHtml =
+                '<div class="bg-white rounded-xl p-3 card-shadow mb-3">' +
+                '<div class="flex items-center justify-between mb-2"><h3 class="font-display font-semibold text-sm">Outlets (' + selIds.length + '/' + outletData.length + ')</h3>' +
+                '<div class="flex gap-1.5"><button onclick="selectAllOutlets()" class="text-[10px] px-2.5 py-1.5 rounded-lg bg-pri text-white btn-press touch-target">Select All</button><button onclick="clearOutlets()" class="text-[10px] px-2.5 py-1.5 rounded-lg bg-gray-100 text-gray-600 btn-press touch-target">Clear</button></div></div>';
+            if (!outletData.length) outletListHtml += '<p class="text-xs text-gray-400 text-center py-4">No orders for this date/filter</p>';
+            else outletListHtml += '<div class="max-h-48 overflow-y-auto space-y-1">' + outletData.map(function(o) {
+                var checked = selIds.indexOf(o.orderId) > -1;
+                return '<label class="flex items-center gap-2.5 py-1.5 px-2 rounded-lg cursor-pointer ' + (checked ? 'bg-pri-50' : 'hover:bg-gray-50') + ' touch-target"><input type="checkbox" ' + (checked ? 'checked' : '') + ' onchange="toggleOutlet(\'' + o.orderId + '\')" class="w-4 h-4 accent-pri rounded"><span class="text-xs flex-1">' + escH(o.shopName) + '</span><span class="text-[10px] text-gray-400">' + escH(o.spName) + '</span></label>';
+            }).join('') + '</div>';
+            outletListHtml += '</div>';
+
+            var loadTable = '<div class="bg-white rounded-xl card-shadow overflow-hidden mb-3">';
+            if (sheet.items.length) {
+                var lastCat = '';
+                var srNum = 0;
+                var tRows = '';
+                sortItems(sheet.items).forEach(function(it) {
+                    if (it.cat !== lastCat) { srNum = 0; tRows += '<tr class="rpt-cat-row"><td colspan="5" class="!text-[10px]">' + escH(it.cat) + '</td></tr>'; lastCat = it.cat }
+                    srNum++;
+                    tRows += '<tr><td class="!text-[11px]">' + srNum + '</td><td class="!text-[11px]">' + escH(it.name) + '<br><span class="text-gray-400 text-[9px]">' + escH(it.pack) + '</span></td><td class="!text-[11px] text-center">' + it.cases + '</td><td class="!text-[11px] text-center">' + (it.cases * it.units) + '</td><td class="!text-[11px] text-right">' + (it.amount ? fmtN(it.amount) : '-') + '</td></tr>';
+                });
+                loadTable += '<div class="overflow-x-auto"><table class="rpt-table w-full"><tr><th>#</th><th>Product</th><th class="text-center">Cases</th><th class="text-center">Units</th><th class="text-right">Amount</th></tr>' + tRows + '</table></div>';
+            } else loadTable += '<div class="p-6 text-center text-gray-400 text-sm"><i class="fa-solid fa-box-open text-2xl mb-2"></i><p>No items</p></div>';
+            loadTable +=
+                '<div class="p-3 bg-gray-50 border-t border-gray-100 grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">' +
+                '<div><span class="text-gray-500 block text-[10px]">Cases</span><span class="font-bold">' + sheet.items.reduce(function(s, i) { return s + i.cases }, 0) + '</span></div>' +
+                '<div><span class="text-gray-500 block text-[10px]">Units</span><span class="font-bold">' + sheet.items.reduce(function(s, i) { return s + i.cases * i.units }, 0) + '</span></div>' +
+                '<div><span class="text-gray-500 block text-[10px]">Gross</span><span class="font-bold">' + fmtN(sheet.items.reduce(function(s, i) { return s + i.amount }, 0)) + '</span></div>' +
+                '<div><span class="text-gray-500 block text-[10px]">Net</span><span class="font-bold text-pri">' + fmtN(sheet.items.reduce(function(s, i) { return s + i.amount }, 0) - sheet.totalDiscount) + '</span></div>' +
+                '</div></div>';
+
+            var printBtn = selIds.length > 0 ?
+                '<button onclick="printLoadSheet(\'' + S.adminDate + '\',\'' + esc(S.adminSP) + '\',\'selected\')" class="w-full py-3 rounded-xl bg-acc text-white font-semibold text-sm btn-press touch-target"><i class="fa-solid fa-print mr-2"></i>Print Load Sheet + Bills</button>' :
+                '<button onclick="printLoadSheet(\'' + S.adminDate + '\',\'' + esc(S.adminSP) + '\',\'all\')" class="w-full py-3 rounded-xl bg-pri text-white font-semibold text-sm btn-press touch-target"><i class="fa-solid fa-print mr-2"></i>Print Full Load Sheet + Bills</button>';
+            return '<div class="p-3 max-w-4xl mx-auto"><h2 class="font-display font-bold text-base mb-3">Load Sheets</h2>' + filters + outletListHtml + loadTable + printBtn + '</div>';
+        }
+
+        function renderASEAssets() {
+            var assets = getAllAssets();
+            var header = '<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3"><h2 class="font-display font-bold text-base">All Assets (' + assets.length + ')</h2><button onclick="S.editingAsset=null;S.assetPhoto=\'\';S.assetPhotoPreview=\'\';S.assetFile=null;S.assetModal=true;render();" class="px-4 py-2 rounded-xl bg-pri text-white text-xs font-semibold btn-press touch-target"><i class="fa-solid fa-plus mr-1"></i>Add Asset</button></div>';
+            var list = assets.map(function(a) {
+                return '<div class="asset-card bg-white rounded-xl p-3 card-shadow mb-2 cursor-pointer" onclick="S.assetViewId=' + a.id + ';render();">' +
+                    '<div class="flex items-start gap-3"><div class="w-10 h-10 rounded-lg bg-acc-50 text-acc flex items-center justify-center flex-shrink-0"><i class="fa-solid fa-image text-sm"></i></div>' +
+                    '<div class="flex-1 min-w-0"><div class="font-semibold text-sm">' + escH(a.assetNumber) + '</div><div class="text-[10px] text-gray-400">' + escH(a.shopName) + (a.shopPhone ? ' | ' + escH(a.shopPhone) : '') + '</div>' + (a.shopAddress ? '<div class="text-[10px] text-gray-400 truncate">' + escH(a.shopAddress) + '</div>' : '') +
+                    '</div></div></div>';
+            }).join('');
+            if (!assets.length) list = '<div class="bg-white rounded-xl card-shadow p-8 text-center text-gray-400 text-sm">No assets found</div>';
+            return '<div class="p-3 max-w-4xl mx-auto">' + header + list + '</div>';
+        }
+
+        // ============================================================
+        // ADMIN APP
+        // ============================================================
+        function renderAdminApp() {
+            var app = document.getElementById('app');
+            if (!app) return;
+            
+            var tabs = [
+                { id: 'dashboard', icon: 'fa-chart-pie', label: 'Dashboard' },
+                { id: 'orders', icon: 'fa-list-check', label: 'Orders' },
+                { id: 'load-sheet', icon: 'fa-truck-ramp-box', label: 'Load Sheet' },
+                { id: 'reports', icon: 'fa-chart-bar', label: 'Reports' },
+                { id: 'more', icon: 'fa-ellipsis', label: 'More' }
+            ];
+            var subViews = ['products', 'users', 'assets', 'settings'];
+
+            var content = '';
+            if (subViews.indexOf(S.adminView) > -1) content = renderAdminSubView(S.adminView);
+            else if (S.adminView === 'dashboard') content = renderAdminDashboard();
+            else if (S.adminView === 'orders') content = renderAdminOrders();
+            else if (S.adminView === 'load-sheet') content = renderAdminLoadSheet();
+            else if (S.adminView === 'reports') content = renderAdminReports();
+            else { S.adminView = 'dashboard'; content = renderAdminDashboard() }
+
+            var syncStatusHtml = getSyncStatusHtml();
+
+            var sideItems = [
+                { id: 'dashboard', icon: 'fa-chart-pie', label: 'Dashboard' },
+                { id: 'orders', icon: 'fa-list-check', label: 'Orders' },
+                { id: 'load-sheet', icon: 'fa-truck-ramp-box', label: 'Load Sheets' },
+                { id: 'reports', icon: 'fa-chart-bar', label: 'Reports' },
+                { id: '_sep', label: 'Management' },
+                { id: 'products', icon: 'fa-boxes-stacked', label: 'Products' },
+                { id: 'users', icon: 'fa-users', label: 'Users' },
+                { id: 'assets', icon: 'fa-image', label: 'Assets' },
+                { id: 'settings', icon: 'fa-gear', label: 'Settings' }
+            ];
+
+            var sidebar = '<nav class="hidden md:flex flex-col w-56 bg-white border-r border-gray-200 h-screen fixed left-0 top-0 z-30 no-print">' +
+                '<div class="p-4 border-b border-gray-100"><div class="font-display font-bold text-pri text-sm">' + escH(getFirm().name) + '</div><div class="text-[10px] text-gray-400">' + escH(S.userName) + ' (' + S.role + ')</div></div>' +
+                '<div class="flex-1 py-2 overflow-y-auto">';
+            sideItems.forEach(function(si) {
+                if (si.id === '_sep') {
+                    sidebar += '<div class="px-4 py-2 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">' + si.label + '</div>';
+                } else {
+                    var isActive = S.adminView === si.id;
+                    sidebar += '<div class="sidebar-item flex items-center gap-3 px-4 py-2.5 mx-2 rounded-lg text-sm ' + (isActive ? 'active' : 'text-gray-600') + '" onclick="S.adminView=\'' + si.id + '\';S.moreMenuOpen=false;render();"><i class="fa-solid ' + si.icon + '"></i>' + si.label + '</div>';
+                }
+            });
+            sidebar += '</div><div class="p-3 border-t border-gray-100"><button onclick="logout()" class="w-full text-xs py-2 rounded-lg bg-gray-50 text-gray-500 hover:bg-red-50 hover:text-red-600 btn-press touch-target"><i class="fa-solid fa-right-from-bracket mr-1"></i>Logout</button></div></nav>';
+
+            var mobileTabs = [
+                { id: 'dashboard', icon: 'fa-chart-pie', label: 'Dashboard' },
+                { id: 'orders', icon: 'fa-list-check', label: 'Orders' },
+                { id: 'load-sheet', icon: 'fa-truck-ramp-box', label: 'Load Sheet' },
+                { id: 'reports', icon: 'fa-chart-bar', label: 'Reports' },
+                { id: 'more', icon: 'fa-ellipsis', label: 'More' }
+            ];
+            var mobileNav = '<div class="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 bottom-nav z-50 md:hidden no-print"><div class="max-w-lg mx-auto flex">' +
+                mobileTabs.map(function(t) {
+                    return '<div class="mobile-tab flex-1 ' + ((S.adminView === t.id) || (t.id === 'more' && subViews.indexOf(S.adminView) > -1) ? 'active' : '') + '" onclick="if(\'' + t.id + '\'===\'more\'){S.moreMenuOpen=!S.moreMenuOpen;render();}else{S.adminView=\'' + t.id + '\';S.moreMenuOpen=false;render();}"><i class="fa-solid ' + t.icon + '"></i><span>' + t.label + '</span></div>';
+                }).join('') + '</div></div>';
+
+            var moreItems = [
+                { id: 'products', icon: 'fa-boxes-stacked', label: 'Products' },
+                { id: 'users', icon: 'fa-users', label: 'Users' },
+                { id: 'assets', icon: 'fa-image', label: 'Assets' },
+                { id: 'settings', icon: 'fa-gear', label: 'Settings' }
+            ];
+            var moreMenu = '';
+            if (S.moreMenuOpen) {
+                moreMenu = '<div class="fixed inset-0 z-[60] md:hidden" onclick="S.moreMenuOpen=false;render();"><div class="absolute inset-0 overlay"></div>' +
+                    '<div class="absolute bottom-14 left-2 right-2 bg-white rounded-2xl shadow-xl overflow-hidden menu-slide">' +
+                    '<div class="p-2">' + moreItems.map(function(m) {
+                        return '<button class="w-full flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-gray-50 text-sm text-gray-700 touch-target" onclick="S.adminView=\'' + m.id + '\';S.moreMenuOpen=false;render();"><i class="fa-solid ' + m.icon + '"></i>' + m.label + '</button>';
+                    }).join('') + '</div></div></div>';
+            }
+
+            var mobileHeader = '<div class="md:hidden bg-pri text-white px-4 py-3 flex items-center justify-between sticky top-0 z-40 no-print">' +
+                '<div><h1 class="font-display font-bold text-sm">' + escH(getFirm().name) + '</h1><p class="text-pri-100 text-[10px]">' + escH(S.userName) + ' (' + S.role + ')</p></div>' +
+                '<div class="flex items-center gap-2">' + syncStatusHtml +
+                '<button onclick="logout()" class="text-pri-100 hover:text-white text-xs touch-target p-2"><i class="fa-solid fa-right-from-bracket"></i></button></div></div>';
+
+            var viewLabel = { dashboard: 'Dashboard', orders: 'Orders', 'load-sheet': 'Load Sheets', reports: 'Reports', products: 'Products', users: 'Users', assets: 'Assets', settings: 'Settings' };
+            var breadcrumb = '<div class="hidden md:block px-6 py-3 bg-white border-b border-gray-100 no-print"><div class="flex items-center justify-between"><div class="text-xs text-gray-400">Admin / <span class="text-gray-700 font-medium">' + (viewLabel[S.adminView] || '') + '</span></div>' + syncStatusHtml + '</div></div>';
+
+            var downloadBtn = '<div class="px-4 py-2 bg-white border-b border-gray-100 no-print flex justify-end">' +
+                '<button onclick="downloadAllOrders()" class="download-btn bg-pri text-white text-xs px-4 py-2 rounded-xl font-semibold flex items-center gap-2 shadow-md hover:bg-pri-dark transition"><i class="fa-solid fa-download"></i> Download All Orders</button></div>';
+
+            app.innerHTML = '<div class="min-h-screen bg-surface">' + sidebar +
+                '<div class="md:ml-56 pb-16 md:pb-0 min-h-screen">' + mobileHeader + breadcrumb + downloadBtn +
+                '<div class="fade-in">' + content + '</div></div>' + mobileNav + moreMenu + '</div>';
+            renderModals();
+        }
+
+        function renderAdminSubView(view) {
+            if (view === 'products') return renderAdminProducts();
+            if (view === 'users') return renderAdminUsers();
+            if (view === 'assets') return renderAdminAssets();
+            if (view === 'settings') return renderAdminSettings();
+            return '';
+        }
+
+        function renderAdminDashboard() {
+            var orders = db.exec("SELECT order_id,sp_username,sp_name,shop_name,shop_phone,shop_location,subtotal,discount,total,load_weight,order_date,status,created_at FROM orders WHERE order_date='" + today() + "'");
+            var orderData = orders.length ? orders[0].values.map(function(row) { return { id: row[0], sp: row[1], spName: row[2], shop: { name: row[3], phone: row[4], location: row[5] }, subtotal: row[6], discount: row[7], total: row[8], load: row[9], date: row[10], status: row[11] || 'open', ts: row[12] } }) : [];
+            var stats = { orders: orderData.length, open: orderData.filter(function(o) { return o.status === 'open' }).length, closed: orderData.filter(function(o) { return o.status === 'closed' }).length, totalVal: orderData.reduce(function(s, o) { return s + o.total }, 0) };
+
+            var recent = db.exec("SELECT order_id,sp_username,sp_name,shop_name,shop_phone,shop_location,subtotal,discount,total,load_weight,order_date,status,created_at FROM orders ORDER BY created_at DESC LIMIT 10");
+            var recentData = recent.length ? recent[0].values.map(function(row) { return { id: row[0], sp: row[1], spName: row[2], shop: { name: row[3], phone: row[4], location: row[5] }, subtotal: row[6], discount: row[7], total: row[8], load: row[9], date: row[10], status: row[11] || 'open', ts: row[12] } }) : [];
+
+            var spData = getAllSalesPersons();
+
+            var statCards = '<div class="grid grid-cols-2 lg:grid-cols-4 gap-3">' +
+                '<div class="stat-card bg-pri-50 text-pri rounded-xl p-3 md:p-4 card-shadow"><div class="flex items-center justify-between mb-1"><i class="fa-solid fa-list-check text-lg opacity-60"></i></div><div class="text-lg md:text-xl font-bold">' + stats.orders + '</div><div class="text-[10px] md:text-xs opacity-70">Today Orders</div></div>' +
+                '<div class="stat-card bg-amber-50 text-amber-600 rounded-xl p-3 md:p-4 card-shadow"><div class="flex items-center justify-between mb-1"><i class="fa-solid fa-clock text-lg opacity-60"></i></div><div class="text-lg md:text-xl font-bold">' + stats.open + '</div><div class="text-[10px] md:text-xs opacity-70">Open</div></div>' +
+                '<div class="stat-card bg-green-50 text-green-600 rounded-xl p-3 md:p-4 card-shadow"><div class="flex items-center justify-between mb-1"><i class="fa-solid fa-check-circle text-lg opacity-60"></i></div><div class="text-lg md:text-xl font-bold">' + stats.closed + '</div><div class="text-[10px] md:text-xs opacity-70">Delivered</div></div>' +
+                '<div class="stat-card bg-acc-50 text-acc rounded-xl p-3 md:p-4 card-shadow"><div class="flex items-center justify-between mb-1"><i class="fa-solid fa-indian-rupee-sign text-lg opacity-60"></i></div><div class="text-lg md:text-xl font-bold">' + fmt(stats.totalVal) + '</div><div class="text-[10px] md:text-xs opacity-70">Value</div></div></div>';
+
+            var recentList = '<div class="bg-white rounded-xl card-shadow overflow-hidden"><div class="px-4 py-3 border-b border-gray-100 flex items-center justify-between"><h3 class="font-display font-semibold text-sm">Recent Orders</h3><button onclick="S.adminView=\'orders\';render();" class="text-xs text-pri">View All</button></div><div class="divide-y divide-gray-50">';
+            if (!recentData.length) recentList += '<div class="p-6 text-center text-gray-400 text-sm">No orders yet</div>';
+            recentData.forEach(function(o) {
+                var statusClr = o.status === 'closed' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700';
+                recentList += '<div class="px-4 py-2.5 flex items-center gap-3"><div class="flex-1 min-w-0"><div class="text-xs font-medium truncate">' + escH(o.shop.name) + '</div><div class="text-[10px] text-gray-400">' + escH(o.spName) + ' | ' + fmtDate(o.date) + '</div></div><span class="text-[10px] font-semibold px-2 py-0.5 rounded-full ' + statusClr + ' flex-shrink-0">' + (o.status === 'closed' ? 'Done' : 'Open') + '</span><span class="text-xs font-bold flex-shrink-0 w-16 text-right">' + fmt(o.total) + '</span></div>';
+            });
+            recentList += '</div></div>';
+
+            var spList = '<div class="bg-white rounded-xl card-shadow overflow-hidden"><div class="px-4 py-3 border-b border-gray-100"><h3 class="font-display font-semibold text-sm">Sales Team</h3></div><div class="divide-y divide-gray-50">' +
+                spData.map(function(sp) { return '<div class="px-4 py-2.5 flex items-center gap-3"><div class="w-8 h-8 rounded-full bg-pri-50 text-pri flex items-center justify-center text-xs font-bold">' + sp.name.charAt(0) + '</div><div class="flex-1"><div class="text-xs font-medium">' + escH(sp.name) + '</div><div class="text-[10px] text-gray-400">' + escH(sp.role) + ' - ' + escH(sp.area) + '</div></div></div>'; }).join('') +
+                '</div></div>';
+
+            return '<div class="p-3 md:p-6 max-w-5xl mx-auto space-y-4">' + statCards + '<div class="grid grid-cols-1 lg:grid-cols-2 gap-4">' + recentList + spList + '</div></div>';
+        }
+
+        function renderAdminOrders() {
+            var spData = getAllSalesPersons();
+            var orders = db.exec("SELECT order_id,sp_username,sp_name,shop_name,shop_phone,shop_location,subtotal,discount,total,load_weight,order_date,status,created_at FROM orders WHERE order_date='" + esc(S.adminDate) + "'" + (S.adminSP ? " AND sp_username='" + esc(S.adminSP) + "'" : "") + (S.adminStatusFilter !== 'all' ? " AND status='" + esc(S.adminStatusFilter) + "'" : "") + " ORDER BY created_at DESC");
+            var orderData = orders.length ? orders[0].values.map(function(row) { return { id: row[0], sp: row[1], spName: row[2], shop: { name: row[3], phone: row[4], location: row[5] }, subtotal: row[6], discount: row[7], total: row[8], load: row[9], date: row[10], status: row[11] || 'open', ts: row[12] } }) : [];
+
+            var filters = '<div class="bg-white rounded-xl p-3 card-shadow mb-3 space-y-2">' +
+                '<div class="grid grid-cols-2 sm:grid-cols-4 gap-2">' +
+                '<input type="date" value="' + S.adminDate + '" class="px-3 py-2 border border-gray-200 rounded-xl text-sm" onchange="S.adminDate=this.value;S._skipEnsure=true;render();">' +
+                '<select class="px-3 py-2 border border-gray-200 rounded-xl text-sm" onchange="S.adminSP=this.value;S._skipEnsure=true;render();"><option value="">All Sales Persons</option>' +
+                spData.map(function(sp) { return '<option value="' + sp.username + '" ' + (S.adminSP === sp.username ? 'selected' : '') + '>' + escH(sp.name) + '</option>' }).join('') + '</select>' +
+                '<select class="px-3 py-2 border border-gray-200 rounded-xl text-sm" onchange="S.adminStatusFilter=this.value;render();"><option value="all" ' + (S.adminStatusFilter === 'all' ? 'selected' : '') + '>All Status</option><option value="open" ' + (S.adminStatusFilter === 'open' ? 'selected' : '') + '>Open</option><option value="closed" ' + (S.adminStatusFilter === 'closed' ? 'selected' : '') + '>Delivered</option></select>' +
+                '<div class="text-xs text-gray-400 flex items-center justify-end">' + orderData.length + ' orders</div></div></div>';
+
+            var list = orderData.map(function(o) {
+                var statusClr = o.status === 'closed' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700';
+                return '<div class="bg-white rounded-xl p-3 card-shadow mb-2"><div class="flex items-start justify-between mb-1"><div class="flex-1 min-w-0"><div class="font-semibold text-sm truncate">' + escH(o.shop.name) + '</div><div class="text-[10px] text-gray-400">' + escH(o.spName) + ' | ' + escH(o.shop.location) + '</div></div><span class="text-[10px] font-semibold px-2 py-0.5 rounded-full ' + statusClr + ' flex-shrink-0 ml-2">' + (o.status === 'closed' ? 'Delivered' : 'Open') + '</span></div>' +
+                    '<div class="flex items-center justify-between text-xs"><span class="text-gray-500">' + fmtDate(o.date) + ' | ' + fmtKg(o.load) + '</span><span class="font-bold text-pri">' + fmt(o.total) + '</span></div>' +
+                    '<div class="flex flex-wrap gap-1.5 mt-2 pt-2 border-t border-gray-50">' +
+                    '<button onclick="viewOrderDetail(\'' + o.id + '\')" class="text-[10px] px-2.5 py-1.5 rounded-lg bg-gray-50 text-gray-600 btn-press touch-target"><i class="fa-solid fa-eye mr-1"></i>View</button>' +
+                    '<button onclick="printBill(\'' + o.id + '\')" class="text-[10px] px-2.5 py-1.5 rounded-lg bg-gray-50 text-gray-600 btn-press touch-target"><i class="fa-solid fa-print mr-1"></i>Bill</button>' +
+                    (o.status === 'open' ? '<button onclick="closeOrder(\'' + o.id + '\')" class="text-[10px] px-2.5 py-1.5 rounded-lg bg-green-50 text-green-700 btn-press touch-target"><i class="fa-solid fa-check mr-1"></i>Deliver</button>' : '') +
+                    '<button onclick="deleteOrder(\'' + o.id + '\')" class="text-[10px] px-2.5 py-1.5 rounded-lg bg-red-50 text-red-600 btn-press touch-target ml-auto"><i class="fa-solid fa-trash"></i></button>' +
+                    '</div></div>';
+            }).join('');
+
+            return '<div class="p-3 md:p-6 max-w-4xl mx-auto"><h2 class="font-display font-bold text-base mb-3">Orders</h2>' + filters + list + '</div>';
+        }
+
+        // ============================================================
+        // ADMIN LOAD SHEET
+        // ============================================================
+        function renderAdminLoadSheet() {
+            var spData = getAllSalesPersons();
+            var outlets = db.exec("SELECT order_id,shop_name,sp_name,sp_username,status FROM orders WHERE order_date='" + esc(S.adminDate) + "'" + (S.adminSP ? " AND sp_username='" + esc(S.adminSP) + "'" : "") + " ORDER BY shop_name");
+            var outletData = outlets.length ? outlets[0].values.map(function(row) { return { orderId: row[0], shopName: row[1], spName: row[2], spUsername: row[3], status: row[4] || 'open' } }) : [];
+
+            ensureLoadSelection(outletData);
+            var selIds = getSelectedOrderIds();
+
+            var sheet = getLoadSheet(S.adminDate, S.adminSP, selIds);
+
+            var filters =
+                '<div class="bg-white rounded-xl p-3 card-shadow mb-3"><div class="grid grid-cols-1 sm:grid-cols-3 gap-2">' +
+                '<input type="date" value="' + S.adminDate + '" class="px-3 py-2 border border-gray-200 rounded-xl text-sm" onchange="S.adminDate=this.value;S._skipEnsure=true;render();">' +
+                '<select class="px-3 py-2 border border-gray-200 rounded-xl text-sm" onchange="S.adminSP=this.value;S._skipEnsure=true;render();"><option value="">All Sales Persons</option>' +
+                spData.map(function(sp) { return '<option value="' + sp.username + '" ' + (S.adminSP === sp.username ? 'selected' : '') + '>' + escH(sp.name) + '</option>' }).join('') +
+                '</select>' +
+                '<div class="text-xs text-gray-400 flex items-center justify-end">' + outletData.length + ' outlets</div>' +
+                '</div></div>';
+
+            var outletListHtml =
+                '<div class="bg-white rounded-xl p-3 card-shadow mb-3">' +
+                '<div class="flex items-center justify-between mb-2"><h3 class="font-display font-semibold text-sm">Outlets (' + selIds.length + '/' + outletData.length + ')</h3>' +
+                '<div class="flex gap-1.5"><button onclick="selectAllOutlets()" class="text-[10px] px-2.5 py-1.5 rounded-lg bg-pri text-white btn-press touch-target">Select All</button><button onclick="clearOutlets()" class="text-[10px] px-2.5 py-1.5 rounded-lg bg-gray-100 text-gray-600 btn-press touch-target">Clear</button></div></div>';
+            if (!outletData.length) outletListHtml += '<p class="text-xs text-gray-400 text-center py-4">No orders for this date/filter</p>';
+            else outletListHtml += '<div class="max-h-48 overflow-y-auto space-y-1">' + outletData.map(function(o) {
+                var checked = selIds.indexOf(o.orderId) > -1;
+                return '<label class="flex items-center gap-2.5 py-1.5 px-2 rounded-lg cursor-pointer ' + (checked ? 'bg-pri-50' : 'hover:bg-gray-50') + ' touch-target"><input type="checkbox" ' + (checked ? 'checked' : '') + ' onchange="toggleOutlet(\'' + o.orderId + '\')" class="w-4 h-4 accent-pri rounded"><span class="text-xs flex-1">' + escH(o.shopName) + '</span><span class="text-[10px] text-gray-400">' + escH(o.spName) + '</span></label>';
+            }).join('') + '</div>';
+            outletListHtml += '</div>';
+
+            var loadTable = '<div class="bg-white rounded-xl card-shadow overflow-hidden mb-3">';
+            if (sheet.items.length) {
+                var lastCat = '';
+                var srNum = 0;
+                var tRows = '';
+                sortItems(sheet.items).forEach(function(it) {
+                    if (it.cat !== lastCat) { srNum = 0; tRows += '<tr class="rpt-cat-row"><td colspan="5" class="!text-[10px]">' + escH(it.cat) + '</td></tr>'; lastCat = it.cat }
+                    srNum++;
+                    tRows += '<tr><td class="!text-[11px]">' + srNum + '</td><td class="!text-[11px]">' + escH(it.name) + '<br><span class="text-gray-400 text-[9px]">' + escH(it.pack) + '</span></td><td class="!text-[11px] text-center">' + it.cases + '</td><td class="!text-[11px] text-center">' + (it.cases * it.units) + '</td><td class="!text-[11px] text-right">' + (it.amount ? fmtN(it.amount) : '-') + '</td></tr>';
+                });
+                loadTable += '<div class="overflow-x-auto"><table class="rpt-table w-full"><tr><th>#</th><th>Product</th><th class="text-center">Cases</th><th class="text-center">Units</th><th class="text-right">Amount</th></tr>' + tRows + '</table></div>';
+            } else loadTable += '<div class="p-6 text-center text-gray-400 text-sm"><i class="fa-solid fa-box-open text-2xl mb-2"></i><p>No items</p></div>';
+            loadTable +=
+                '<div class="p-3 bg-gray-50 border-t border-gray-100 grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">' +
+                '<div><span class="text-gray-500 block text-[10px]">Cases</span><span class="font-bold">' + sheet.items.reduce(function(s, i) { return s + i.cases }, 0) + '</span></div>' +
+                '<div><span class="text-gray-500 block text-[10px]">Units</span><span class="font-bold">' + sheet.items.reduce(function(s, i) { return s + i.cases * i.units }, 0) + '</span></div>' +
+                '<div><span class="text-gray-500 block text-[10px]">Gross</span><span class="font-bold">' + fmtN(sheet.items.reduce(function(s, i) { return s + i.amount }, 0)) + '</span></div>' +
+                '<div><span class="text-gray-500 block text-[10px]">Net</span><span class="font-bold text-pri">' + fmtN(sheet.items.reduce(function(s, i) { return s + i.amount }, 0) - sheet.totalDiscount) + '</span></div>' +
+                '</div></div>';
+
+            var printBtn = selIds.length > 0 ?
+                '<button onclick="printLoadSheet(\'' + S.adminDate + '\',\'' + esc(S.adminSP) + '\',\'selected\')" class="w-full py-3 rounded-xl bg-acc text-white font-semibold text-sm btn-press touch-target"><i class="fa-solid fa-print mr-2"></i>Print Load Sheet + Bills</button>' :
+                '<button onclick="printLoadSheet(\'' + S.adminDate + '\',\'' + esc(S.adminSP) + '\',\'all\')" class="w-full py-3 rounded-xl bg-pri text-white font-semibold text-sm btn-press touch-target"><i class="fa-solid fa-print mr-2"></i>Print Full Load Sheet + Bills</button>';
+            return '<div class="p-3 md:p-6 max-w-4xl mx-auto"><h2 class="font-display font-bold text-base mb-3">Load Sheets</h2>' + filters + outletListHtml + loadTable + printBtn + '</div>';
+        }
+
+        function renderAdminReports() {
+            var spData = getAllSalesPersons();
+
+            var range = getReportDateRange(S.rptPeriod);
+            var from = range.from;
+            var to = range.to;
+
+            var reportData = getReportData(S.rptSP, S.rptPeriod);
+
+            var filters = '<div class="bg-white rounded-xl p-3 card-shadow mb-3 space-y-2">' +
+                '<div class="grid grid-cols-2 sm:grid-cols-3 gap-2">' +
+                '<select class="px-3 py-2 border border-gray-200 rounded-xl text-sm" onchange="S.rptSP=this.value;render();"><option value="">All Sales Persons</option>' +
+                spData.map(function(sp) { return '<option value="' + sp.username + '" ' + (S.rptSP === sp.username ? 'selected' : '') + '>' + escH(sp.name) + '</option>' }).join('') + '</select>' +
+                '<select class="px-3 py-2 border border-gray-200 rounded-xl text-sm" onchange="S.rptPeriod=this.value;render();"><option value="thisWeek" ' + (S.rptPeriod === 'thisWeek' ? 'selected' : '') + '>This Week</option><option value="lastWeek" ' + (S.rptPeriod === 'lastWeek' ? 'selected' : '') + '>Last Week</option><option value="thisMonth" ' + (S.rptPeriod === 'thisMonth' ? 'selected' : '') + '>This Month</option><option value="lastMonth" ' + (S.rptPeriod === 'lastMonth' ? 'selected' : '') + '>Last Month</option><option value="custom" ' + (S.rptPeriod === 'custom' ? 'selected' : '') + '>Custom</option></select>' +
+                '<div></div></div>' +
+                (S.rptPeriod === 'custom' ? '<div class="grid grid-cols-2 gap-2"><input type="date" value="' + S.rptFrom + '" class="px-3 py-2 border border-gray-200 rounded-xl text-sm" onchange="S.rptFrom=this.value;render();"><input type="date" value="' + S.rptTo + '" class="px-3 py-2 border border-gray-200 rounded-xl text-sm" onchange="S.rptTo=this.value;render();"></div>' : '') +
+                '<div class="text-xs text-gray-400">' + fmtDate(from) + ' to ' + fmtDate(to) + '</div></div>';
+
+            var summaryCards = '<div class="grid grid-cols-2 sm:grid-cols-5 gap-2 mb-3">' +
+                '<div class="bg-white rounded-xl p-3 card-shadow text-center"><div class="text-lg font-bold text-pri">' + reportData.summary.orders + '</div><div class="text-[10px] text-gray-500">Orders</div></div>' +
+                '<div class="bg-white rounded-xl p-3 card-shadow text-center"><div class="text-lg font-bold">' + reportData.summary.cases + '</div><div class="text-[10px] text-gray-500">Cases</div></div>' +
+                '<div class="bg-white rounded-xl p-3 card-shadow text-center"><div class="text-lg font-bold">' + reportData.summary.units + '</div><div class="text-[10px] text-gray-500">Units</div></div>' +
+                '<div class="bg-white rounded-xl p-3 card-shadow text-center"><div class="text-lg font-bold text-pri">' + fmtN(reportData.summary.value) + '</div><div class="text-[10px] text-gray-500">Gross</div></div>' +
+                '<div class="bg-white rounded-xl p-3 card-shadow text-center col-span-2 sm:col-span-1"><div class="text-lg font-bold text-acc">' + fmtN(reportData.summary.value - reportData.summary.discount) + '</div><div class="text-[10px] text-gray-500">Net</div></div></div>';
+
+            var table = '<div class="bg-white rounded-xl card-shadow overflow-hidden mb-3">';
+            if (reportData.items.length) {
+                var lastCat = '';
+                var srNum = 0;
+                var tRows = '';
+                var totalValue = reportData.summary.value;
+                reportData.items.forEach(function(it) {
+                    if (it.cat !== lastCat) {
+                        var catItems = reportData.items.filter(function(x) { return x.cat === it.cat });
+                        var catTotal = catItems.reduce(function(s, x) { return s + x.value }, 0);
+                        var catPct = totalValue > 0 ? ((catTotal / totalValue) * 100).toFixed(1) : 0;
+                        tRows += '<tr class="rpt-cat-row"><td colspan="4" class="!text-[10px]">' + escH(it.cat) + ' <span class="font-normal text-gray-500">(₹' + fmtN(catTotal) + ' - ' + catPct + '%)</span></td></tr>';
+                        lastCat = it.cat;
+                        srNum = 0;
+                    }
+                    srNum++;
+                    var pct = totalValue > 0 ? ((it.value / totalValue) * 100).toFixed(1) : 0;
+                    var barWidth = Math.min(parseFloat(pct) * 1.5, 100);
+                    tRows += '<tr><td class="!text-[11px]">' + srNum + '</td><td class="!text-[11px]">' + escH(it.name) + '<br><span class="text-gray-400 text-[9px]">' + escH(it.pack) + '</span></td><td class="!text-[11px] text-center">' + it.cases + '</td><td class="!text-[11px] text-right">' + fmtN(it.value) + '</td></tr>' +
+                        '<tr><td colspan="4" style="padding:2px 8px 6px 8px"><div class="contrib-bar"><div class="contrib-fill" style="width:' + barWidth + '%"></div></div><span style="font-size:9px;color:#0E7C6B;font-weight:600">' + pct + '% contribution</span></td></tr>';
+                });
+                table += '<div class="overflow-x-auto"><table class="rpt-table w-full"><tr><th>#</th><th>Product</th><th class="text-center">Cases</th><th class="text-right">Value</th></tr>' + tRows + '</table></div>';
+            } else table += '<div class="p-6 text-center text-gray-400 text-sm">No data for this period</div>';
+            table += '</div>';
+
+            return '<div class="p-3 md:p-6 max-w-4xl mx-auto"><h2 class="font-display font-bold text-base mb-3">Reports</h2>' + filters + summaryCards + table +
+                '<button onclick="printReport(\'' + esc(S.rptSP) + '\',\'' + S.rptPeriod + '\')" class="w-full py-3 rounded-xl bg-pri text-white font-semibold text-sm btn-press touch-target"><i class="fa-solid fa-print mr-2"></i>Print Report</button></div>';
+        }
+
+        function renderAdminProducts() {
+            var prods = getAllProductsAdmin();
+            var cats = ['All'].concat(Array.from(new Set(prods.map(function(p) { return p.cat }))));
+            var filtered = S.adminView === 'products' ? (S.catFilter === 'All' ? prods : prods.filter(function(p) { return p.cat === S.catFilter })) : prods;
+
+            var header = '<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">' +
+                '<h2 class="font-display font-bold text-base">Products (' + filtered.length + ')</h2>' +
+                '<button onclick="S.editingProduct=null;S.productModal=true;render();" class="px-4 py-2 rounded-xl bg-pri text-white text-xs font-semibold btn-press touch-target"><i class="fa-solid fa-plus mr-1"></i>Add Product</button></div>';
+
+            var catBar = '<div class="flex gap-2 overflow-x-auto pb-2 mb-3" style="-webkit-overflow-scrolling:touch">' +
+                cats.map(function(c) { return '<button class="cat-pill px-3 py-1.5 rounded-full text-xs font-medium border border-gray-200 bg-white ' + (S.catFilter === c ? 'active' : 'text-gray-600') + '" onclick="S.catFilter=\'' + c + '\';render();">' + c + '</button>'; }).join('') + '</div>';
+
+            var list = filtered.map(function(p) {
+                var activeCls = p.active ? '' : 'opacity-50';
+                return '<div class="bg-white rounded-xl p-3 card-shadow mb-2 ' + activeCls + '">' +
+                    '<div class="flex items-start justify-between gap-2"><div class="flex-1 min-w-0"><div class="font-semibold text-sm">' + escH(p.name) + '</div><div class="text-[10px] text-gray-400">' + escH(p.sku) + ' | ' + escH(p.pack) + ' x ' + p.units + '</div></div>' +
+                    '<div class="text-right flex-shrink-0"><div class="font-bold text-sm text-pri">' + (p.price ? fmt(p.price) : 'N/A') + '</div>' +
+                    '<span class="text-[9px] px-1.5 py-0.5 rounded-full ' + (p.active ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-600') + '">' + (p.active ? 'Active' : 'Inactive') + '</span></div></div>' +
+                    '<div class="text-[10px] text-gray-400 mb-2">' + escH(p.cat) + '</div>' +
+                    '<div class="flex gap-1.5">' +
+                    '<button onclick="S.editingProduct=' + JSON.stringify(p).replace(/"/g, '&quot;') + ';S.productModal=true;render();" class="text-[10px] px-2.5 py-1.5 rounded-lg bg-gray-50 text-gray-600 btn-press touch-target"><i class="fa-solid fa-pen mr-1"></i>Edit</button>' +
+                    '<button onclick="toggleProductActive(' + p.id + ',' + (!p.active) + ')" class="text-[10px] px-2.5 py-1.5 rounded-lg bg-gray-50 text-gray-600 btn-press touch-target">' + (p.active ? '<i class="fa-solid fa-ban mr-1"></i>Disable' : '<i class="fa-solid fa-check mr-1"></i>Enable') + '</button>' +
+                    '<button onclick="deleteProduct(' + p.id + ')" class="text-[10px] px-2.5 py-1.5 rounded-lg bg-red-50 text-red-600 btn-press touch-target ml-auto"><i class="fa-solid fa-trash"></i></button>' +
+                    '</div></div>';
+            }).join('');
+
+            return '<div class="p-3 md:p-6 max-w-4xl mx-auto">' + header + catBar + list + '</div>';
+        }
+
+        function renderAdminUsers() {
+            var users = db.exec("SELECT id,username,name,role,area,is_active,created_at FROM users ORDER BY role,name");
+            var userData = users.length ? users[0].values.map(function(row) { return { id: row[0], username: row[1], name: row[2], role: row[3], area: row[4], active: row[5], created: row[6] } }) : [];
+
+            var header = '<div class="flex items-center justify-between mb-3"><h2 class="font-display font-bold text-base">Users (' + userData.length + ')</h2>' +
+                '<button onclick="S.editingUser=null;S.userModal=true;render();" class="px-4 py-2 rounded-xl bg-pri text-white text-xs font-semibold btn-press touch-target"><i class="fa-solid fa-plus mr-1"></i>Add User</button></div>';
+
+            var list = userData.map(function(u) {
+                var roleClr = u.role === 'admin' ? 'bg-purple-100 text-purple-700' : u.role === 'ase' ? 'bg-blue-100 text-blue-700' : 'bg-green-100 text-green-700';
+                return '<div class="bg-white rounded-xl p-3 card-shadow mb-2 ' + (u.active ? '' : 'opacity-50') + '">' +
+                    '<div class="flex items-center gap-3"><div class="w-10 h-10 rounded-full bg-pri-50 text-pri flex items-center justify-center font-bold text-sm flex-shrink-0">' + u.name.charAt(0) + '</div>' +
+                    '<div class="flex-1 min-w-0"><div class="font-semibold text-sm">' + escH(u.name) + '</div><div class="text-[10px] text-gray-400">@' + escH(u.username) + ' | ' + escH(u.area || 'No area') + '</div></div>' +
+                    '<span class="text-[10px] font-semibold px-2 py-0.5 rounded-full ' + roleClr + ' flex-shrink-0">' + u.role.toUpperCase() + '</span></div>' +
+                    '<div class="flex gap-1.5 mt-2 pt-2 border-t border-gray-50">' +
+                    '<button onclick="S.editingUser=' + JSON.stringify(u).replace(/"/g, '&quot;') + ';S.userModal=true;render();" class="text-[10px] px-2.5 py-1.5 rounded-lg bg-gray-50 text-gray-600 btn-press touch-target"><i class="fa-solid fa-pen mr-1"></i>Edit</button>' +
+                    '<button onclick="toggleUserActive(' + u.id + ',' + (!u.active) + ')" class="text-[10px] px-2.5 py-1.5 rounded-lg bg-gray-50 text-gray-600 btn-press touch-target">' + (u.active ? '<i class="fa-solid fa-ban mr-1"></i>Disable' : '<i class="fa-solid fa-check mr-1"></i>Enable') + '</button>' +
+                    '</div></div>';
+            }).join('');
+
+            return '<div class="p-3 md:p-6 max-w-3xl mx-auto">' + header + list + '</div>';
+        }
+
+        function renderAdminAssets() {
+            var assets = getAllAssets();
+            var header = '<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3"><h2 class="font-display font-bold text-base">Assets (' + assets.length + ')</h2><button onclick="S.editingAsset=null;S.assetPhoto=\'\';S.assetPhotoPreview=\'\';S.assetFile=null;S.assetModal=true;render();" class="px-4 py-2 rounded-xl bg-pri text-white text-xs font-semibold btn-press touch-target"><i class="fa-solid fa-plus mr-1"></i>Add Asset</button></div>';
+            var list = assets.map(function(a) {
+                return '<div class="asset-card bg-white rounded-xl p-3 card-shadow mb-2 cursor-pointer" onclick="S.assetViewId=' + a.id + ';render();">' +
+                    '<div class="flex items-start gap-3"><div class="w-10 h-10 rounded-lg bg-acc-50 text-acc flex items-center justify-center flex-shrink-0"><i class="fa-solid fa-image text-sm"></i></div>' +
+                    '<div class="flex-1 min-w-0"><div class="font-semibold text-sm">' + escH(a.assetNumber) + '</div><div class="text-[10px] text-gray-400">' + escH(a.shopName) + (a.shopPhone ? ' | ' + escH(a.shopPhone) : '') + '</div>' + (a.shopAddress ? '<div class="text-[10px] text-gray-400 truncate">' + escH(a.shopAddress) + '</div>' : '') +
+                    '</div></div></div>';
+            }).join('');
+            if (!assets.length) list = '<div class="bg-white rounded-xl card-shadow p-8 text-center text-gray-400 text-sm">No assets found</div>';
+            return '<div class="p-3 md:p-6 max-w-3xl mx-auto">' + header + list + '</div>';
+        }
+
+        function renderAdminSettings() {
+            var firm = getFirm();
+            return '<div class="p-3 md:p-6 max-w-2xl mx-auto"><h2 class="font-display font-bold text-base mb-3">Settings</h2>' +
+                '<div class="bg-white rounded-xl p-4 card-shadow space-y-3">' +
+                '<div><label class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Firm Name</label><input id="set-firm" type="text" value="' + escH(firm.name) + '" class="w-full mt-1 px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-pri"></div>' +
+                '<div><label class="text-xs font-semibold text-gray-500 uppercase tracking-wide">GSTIN</label><input id="set-gst" type="text" value="' + escH(firm.gst) + '" class="w-full mt-1 px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-pri"></div>' +
+                '<div><label class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Phone</label><input id="set-phone" type="text" value="' + escH(firm.phone) + '" class="w-full mt-1 px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-pri"></div>' +
+                '<div><label class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Address</label><textarea id="set-address" class="w-full mt-1 px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-pri" rows="2">' + escH(firm.address) + '</textarea></div>' +
+                '<button onclick="saveSettings()" class="w-full py-3 rounded-xl bg-pri text-white font-semibold text-sm btn-press touch-target"><i class="fa-solid fa-save mr-2"></i>Save Settings</button>' +
+                '</div></div>';
+        }
+
+        // ============================================================
+        // HELPER FUNCTIONS
+        // ============================================================
+        function ensureLoadSelection(outletData) {
+            if (S._skipEnsure) { S._skipEnsure = false; return }
+            if (!outletData.length) { S.loadSelection = {}; return }
+            var has = Object.keys(S.loadSelection).length;
+            if (has === 0) {
+                outletData.forEach(function(x) { S.loadSelection[x.orderId] = true });
+            }
+        }
+
+        function getSelectedOrderIds() {
+            return Object.keys(S.loadSelection).filter(function(k) { return S.loadSelection[k] });
+        }
+
+        function toggleUserActive(id, active) {
+            var r = db.exec("SELECT username FROM users WHERE id=" + id);
+            if (r.length && r[0].values[0][0] === S.user) { toast('Cannot disable your own account', 'error'); return }
+            db.run("UPDATE users SET is_active=" + (active ? 1 : 0) + " WHERE id=" + id);
+            saveDB();
+            toast(active ? 'User activated' : 'User deactivated', 'info');
+            render()
+        }
+
+        function toggleProductActive(id, active) {
+            db.run("UPDATE products SET is_active=" + (active ? 1 : 0) + ",updated_at=datetime('now','localtime') WHERE id=" + id);
+            saveDB();
+            toast(active ? 'Product activated' : 'Product deactivated', 'info');
+            render()
+        }
+
+        function deleteProduct(id) {
+            if (!confirm('Permanently delete this product?')) return;
+            db.run("DELETE FROM order_items WHERE product_id=" + id);
+            db.run("DELETE FROM products WHERE id=" + id);
+            saveDB();
+            toast('Product deleted', 'info');
+            render()
+        }
+
+        function saveUser() {
+            var username = document.getElementById('usr-name').value.trim().toLowerCase();
+            var password = document.getElementById('usr-pass').value;
+            var fullname = document.getElementById('usr-full').value.trim();
+            var role = document.getElementById('usr-role').value;
+            var area = document.getElementById('usr-area').value.trim();
+            if (!username || !password || !fullname || !role) { toast('Fill all required fields', 'error'); return }
+            if (password.length < 4) { toast('Password must be at least 4 characters', 'error'); return }
+            try {
+                if (S.editingUser) {
+                    db.run("UPDATE users SET username='" + esc(username) + "',password='" + esc(password) + "',name='" + esc(fullname) + "',role='" + esc(role) + "',area='" + esc(area) + "' WHERE id=" + S.editingUser.id);
+                    toast('User updated!');
+                } else {
+                    var exist = db.exec("SELECT id FROM users WHERE username='" + esc(username) + "'");
+                    if (exist.length) { toast('Username already taken', 'error'); return }
+                    db.run("INSERT INTO users (username,password,name,role,area) VALUES ('" + esc(username) + "','" + esc(password) + "','" + esc(fullname) + "','" + esc(role) + "','" + esc(area) + "')");
+                    toast('User created!')
+                }
+                saveDB();
+                S.userModal = null;
+                S.editingUser = null;
+                render();
+            } catch (e) { toast('Error: ' + e.message, 'error') }
+        }
+
+        function saveSettings() {
+            setSetting('firm_name', document.getElementById('set-firm').value.trim());
+            setSetting('firm_gst', document.getElementById('set-gst').value.trim());
+            setSetting('firm_phone', document.getElementById('set-phone').value.trim());
+            setSetting('firm_address', document.getElementById('set-address').value.trim());
+            toast('Settings saved!');
+            render()
+        }
+
+        // ============================================================
+        // DATA FUNCTIONS FOR PRINTING
+        // ============================================================
+        function getLoadSheet(date, spFilter, selectedIds) {
+            var sql = "SELECT oi.product_name,oi.pack,oi.cases,oi.units_per_case,oi.unit_price,oi.line_total,p.category FROM order_items oi JOIN orders o ON oi.order_id=o.order_id JOIN products p ON oi.product_id=p.id WHERE o.order_date='" + esc(date) + "'";
+            if (spFilter) sql += " AND o.sp_username='" + esc(spFilter) + "'";
+            if (selectedIds && selectedIds.length > 0) {
+                sql += " AND o.order_id IN ('" + selectedIds.map(function(id) { return esc(id) }).join("','") + "')";
+            }
+            var r = db.exec(sql);
+            var items = [];
+            var totalDiscount = 0;
+            if (r.length) {
+                var agg = {};
+                r[0].values.forEach(function(row) { var key = row[0] + '|' + row[1]; if (!agg[key]) agg[key] = { name: row[0], pack: row[1], cases: 0, units: row[3], price: row[4], amount: 0, cat: row[6] }; agg[key].cases += row[2]; if (row[4]) agg[key].price = row[4] });
+                Object.values(agg).forEach(function(it) { it.amount = it.price ? it.cases * it.price : 0 });
+                items = Object.values(agg);
+                var discSql = "SELECT COALESCE(SUM(discount),0) FROM orders WHERE order_date='" + esc(date) + "'" + (spFilter ? " AND sp_username='" + esc(spFilter) + "'" : "");
+                if (selectedIds && selectedIds.length > 0) {
+                    discSql += " AND order_id IN ('" + selectedIds.map(function(id) { return esc(id) }).join("','") + "')";
+                }
+                var dr = db.exec(discSql);
+                if (dr.length) totalDiscount = dr[0].values[0][0];
+            }
+            return { items: items, totalDiscount: totalDiscount };
+        }
+
+        function getReportData(spFilter, period) {
+            var range = getReportDateRange(period);
+            var from = range.from;
+            var to = range.to;
+
+            var sql = "SELECT oi.product_name,oi.pack,oi.cases,oi.units_per_case,oi.unit_price,oi.line_total,p.category,o.sp_name FROM order_items oi JOIN orders o ON oi.order_id=o.order_id JOIN products p ON oi.product_id=p.id WHERE o.order_date>='" + esc(from) + "' AND o.order_date<='" + esc(to) + "'";
+            if (spFilter) sql += " AND o.sp_username='" + esc(spFilter) + "'";
+            var r = db.exec(sql);
+            var items = [];
+            var orderCount = 0;
+            var totalDiscount = 0;
+            var or3 = db.exec("SELECT COUNT(*), COALESCE(SUM(discount),0) FROM orders WHERE order_date>='" + esc(from) + "' AND order_date<='" + esc(to) + "'" + (spFilter ? " AND sp_username='" + esc(spFilter) + "'" : ""));
+            if (or3.length) { orderCount = or3[0].values[0][0]; totalDiscount = or3[0].values[0][1]; }
+            if (r.length) {
+                var agg = {};
+                r[0].values.forEach(function(row) { var key = row[0] + '|' + row[1]; if (!agg[key]) agg[key] = { name: row[0], pack: row[1], cases: 0, units: row[3], price: row[4], value: 0, cat: row[6], spName: row[7] }; agg[key].cases += row[2]; agg[key].value += row[5] || 0; if (row[4]) agg[key].price = row[4]; });
+                items = sortItems(Object.values(agg));
+            }
+            var totalValue = items.reduce(function(s, i) { return s + i.value }, 0);
+            var totalCases = items.reduce(function(s, i) { return s + i.cases }, 0);
+            var totalUnits = items.reduce(function(s, i) { return s + i.cases * i.units }, 0);
+            
+            return {
+                items: items,
+                from: from,
+                to: to,
+                summary: {
+                    orders: orderCount,
+                    cases: totalCases,
+                    units: totalUnits,
+                    value: totalValue,
+                    discount: totalDiscount
+                }
+            };
+        }
+
+        function getReportDateRange(period) {
+            var d = new Date();
+            var from, to;
+            switch (period) {
+                case 'thisWeek':
+                    var day = d.getDay();
+                    from = new Date(d);
+                    from.setDate(d.getDate() - (day === 0 ? 6 : day - 1));
+                    from.setHours(0, 0, 0, 0);
+                    to = new Date(d);
+                    to.setHours(23, 59, 59, 999);
+                    break;
+                case 'lastWeek':
+                    var day2 = d.getDay();
+                    from = new Date(d);
+                    from.setDate(d.getDate() - (day2 === 0 ? 6 : day2 - 1) - 7);
+                    from.setHours(0, 0, 0, 0);
+                    to = new Date(from);
+                    to.setDate(from.getDate() + 6);
+                    to.setHours(23, 59, 59, 999);
+                    break;
+                case 'thisMonth':
+                    from = new Date(d.getFullYear(), d.getMonth(), 1);
+                    to = new Date(d);
+                    to.setHours(23, 59, 59, 999);
+                    break;
+                case 'lastMonth':
+                    from = new Date(d.getFullYear(), d.getMonth() - 1, 1);
+                    to = new Date(d.getFullYear(), d.getMonth(), 0, 23, 59, 59, 999);
+                    break;
+                case 'custom':
+                    from = S.rptFrom ? new Date(S.rptFrom + 'T00:00:00') : new Date(d.getFullYear(), d.getMonth(), 1);
+                    to = S.rptTo ? new Date(S.rptTo + 'T23:59:59') : new Date(d);
+                    break;
+                default:
+                    from = new Date(d.getFullYear(), d.getMonth(), 1);
+                    to = new Date(d);
+                    to.setHours(23, 59, 59, 999);
+            }
+            return { from: from.toISOString().split('T')[0], to: to.toISOString().split('T')[0] };
+        }
+
+        // ============================================================
+        // PRINT FUNCTIONS
+        // ============================================================
+        function printBill(oid) {
+            var order = getOrderById(oid);
+            if (!order) { toast('Order not found', 'error'); return }
+            var items = getOrderItems(oid);
+            var firm = getFirm();
+            var billNo = order.billNo;
+            if (!billNo) { var counter = parseInt(getSetting('bill_counter', '1000')) + 1;
+                setSetting('bill_counter', String(counter));
+                db.run("UPDATE orders SET bill_number=" + counter + " WHERE order_id='" + esc(oid) + "'");
+                saveDB();
+                billNo = counter }
+            var itemRows = '';
+            items.forEach(function(it, i) { itemRows += '<tr><td>' + (i + 1) + '</td><td>' + escH(it.name) +
+                    '<br><span style="font-size:9px;color:#666">' + escH(it.pack) +
+                    '</span></td><td style="text-align:right">' + it.cases +
+                    '</td><td style="text-align:right">' + (it.price ? fmtN(it.price) : '-') +
+                    '</td><td style="text-align:right">' + fmtN(it.total) + '</td></tr>' });
+            var discRow = order.discount > 0 ? '<tr><td>Discount</td><td style="text-align:right">- ' + fmtN(order
+                .discount) + '</td></tr>' : '';
+            var w = window.open('', '_blank', 'width=350,height=700');
+            w.document.write('<!DOCTYPE html><html><head><title>Bill ' + billNo +
+                '</title><style>*{margin:0;padding:0;box-sizing:border-box}body{font-family:"Courier New",monospace;font-size:11px;padding:10px;max-width:280px;margin:0 auto;color:#000}.center{text-align:center}.bold{font-weight:bold}.right{text-align:right}.line{border-top:1px dashed #000;margin:6px 0}.dline{border-top:2px double #000;margin:6px 0}table{width:100%;border-collapse:collapse}td{padding:2px 0;vertical-align:top}@media print{body{padding:5px}}</style></head><body>'
+                );
+            w.document.write('<div class="center bold" style="font-size:14px;margin-bottom:2px">' + escH(firm.name) +
+                '</div>');
+            if (firm.address) w.document.write('<div class="center" style="font-size:9px">' + escH(firm.address) +
+                '</div>');
+            w.document.write('<div class="center" style="font-size:9px">GSTIN: ' + (firm.gst || 'N/A') + '</div>');
+            w.document.write('<div class="center" style="font-size:9px">Ph: ' + (firm.phone || 'N/A') + '</div>');
+            w.document.write('<div class="dline"></div>');
+            w.document.write('<div style="font-size:9px">Bill No: <span class="bold">' + billNo + '</span></div>');
+            w.document.write('<div style="font-size:9px">Date: ' + fmtDate(order.date) + '</div>');
+            w.document.write('<div class="line"></div>');
+            w.document.write('<div class="bold" style="font-size:12px">' + escH(order.shop.name) + '</div>');
+            w.document.write('<div style="font-size:9px">Ph: ' + escH(order.shop.phone) + ' | ' + escH(order.shop
+                .location) + '</div>');
+            w.document.write(
+                '<div class="line"></div><table><tr style="font-weight:bold;border-bottom:1px solid #000"><td>#</td><td>Item</td><td class="right">Cs</td><td class="right">Rate</td><td class="right">Amt</td></tr>'
+                );
+            w.document.write(itemRows);
+            w.document.write('</table><div class="line"></div>');
+            w.document.write('<table><tr><td>Subtotal</td><td class="right">' + fmtN(order.subtotal) +
+                '</td></tr>' + discRow +
+                '<tr style="font-weight:bold;font-size:13px;border-top:1px solid #000"><td>TOTAL</td><td class="right">' +
+                fmt(order.total) + '</td></tr></table>');
+            w.document.write('<div class="line"></div>');
+            w.document.write('<div class="center" style="font-size:9px">Sales: ' + escH(order.spName) + '</div>');
+            w.document.write('<div class="center" style="font-size:9px">Order: ' + order.id + '</div>');
+            w.document.write('<div class="dline"></div>');
+            w.document.write('<div class="center bold">Thank you for your order!</div>');
+            w.document.write('<div class="center" style="font-size:9px;margin-top:4px">' + escH(firm.name) +
+                '</div>');
+            w.document.write(
+                '<script>window.onload=function(){window.print();}<\/script></body></html>');
+            w.document.close();
+        }
+
+        function printLoadSheet(date, spFilter, mode) {
+            var orderIds = [];
+            if (mode === 'selected') {
+                orderIds = getSelectedOrderIds();
+            } else {
+                var orderSql = "SELECT order_id FROM orders WHERE order_date='" + esc(date) + "'";
+                if (spFilter) orderSql += " AND sp_username='" + esc(spFilter) + "'";
+                var rOrd = db.exec(orderSql);
+                if (rOrd.length) {
+                    orderIds = rOrd[0].values.map(function(row) { return row[0] });
+                }
+            }
+
+            var sheet = getLoadSheet(date, spFilter, orderIds);
+            var firm = getFirm();
+
+            var spName = 'All';
+            if (spFilter) {
+                var sr = db.exec("SELECT name FROM users WHERE username='" + esc(spFilter) + "'");
+                if (sr.length) spName = sr[0].values[0][0];
+            }
+
+            var totalCases = sheet.items.reduce(function(s, i) { return s + i.cases }, 0);
+            var totalUnits = sheet.items.reduce(function(s, i) { return s + i.cases * i.units }, 0);
+            var totalValue = sheet.items.reduce(function(s, i) { return s + i.amount }, 0);
+
+            var rows = '';
+            var lastCat = '';
+            var srNum = 0;
+            sortItems(sheet.items).forEach(function(it) {
+                if (it.cat !== lastCat) {
+                    srNum = 0;
+                    rows += '<tr style="background:#edfaf7"><td colspan="6" style="font-weight:bold;font-size:11px;color:#0a5e52;padding:6px 4px">' + escH(it.cat) + '</td></tr>';
+                    lastCat = it.cat;
+                }
+                srNum++;
+                rows += '<tr><td>' + srNum + '</td><td>' + escH(it.name) +
+                    '</td><td style="font-size:10px;color:#666">' + escH(it.pack) +
+                    '</td><td style="text-align:center">' + it.cases +
+                    '</td><td style="text-align:center">' + (it.cases * it.units) +
+                    '</td><td style="text-align:right">' + (it.amount ? fmtN(it.amount) : '-') + '</td></tr>';
+            });
+
+            var w = window.open('', '_blank', 'width=800,height=900');
+            w.document.write(
+                '<!DOCTYPE html><html><head><title>Load Sheet - ' + date +
+                '</title><style>*{margin:0;padding:0;box-sizing:border-box}body{font-family:"Courier New",monospace;font-size:11px;padding:12px;max-width:900px;margin:0 auto;color:#000}.center{text-align:center}.bold{font-weight:bold}.line{border-top:1px dashed #000;margin:6px 0}.dline{border-top:2px double #000;margin:6px 0}table{width:100%;border-collapse:collapse}td,th{padding:4px 5px;border-bottom:1px solid #ddd;text-align:left}th{background:#f5f5f5;font-weight:bold;font-size:10px;text-transform:uppercase}.page-break{page-break-before:always}.outlet-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:10px}.outlet-block{border:1px solid #ddd;border-radius:4px;padding:10px;page-break-inside:avoid;break-inside:avoid}@media print{body{padding:8px}th{background:#f0f0f0!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}.outlet-grid{gap:8px}}@media (max-width:700px){.outlet-grid{grid-template-columns:1fr}}</style></head><body>'
+                );
+
+            w.document.write('<div class="center bold" style="font-size:16px;margin-bottom:2px">' + escH(firm.name) + '</div>');
+            if (firm.address) w.document.write('<div class="center" style="font-size:10px;color:#666">' + escH(firm.address) + '</div>');
+            if (firm.gst) w.document.write('<div class="center" style="font-size:10px;color:#666">GSTIN: ' + escH(firm.gst) + '</div>');
+            w.document.write('<div class="dline"></div>');
+            w.document.write('<div style="font-size:14px;font-weight:bold;margin-bottom:4px">LOAD SHEET - SUMMARY</div>');
+            w.document.write('<div style="font-size:10px;margin-bottom:6px">Date: <strong>' + fmtDate(date) +
+                '</strong> | Sales Person: <strong>' + escH(spName) + '</strong>' + (orderIds.length > 0 ? ' | Outlets: ' + orderIds.length : '') + '</div>');
+            w.document.write('<div class="line"></div>');
+            w.document.write(
+                '<table><tr><th>#</th><th>Product</th><th>Pack</th><th style="text-align:center">Cases</th><th style="text-align:center">Units</th><th style="text-align:right">Amount</th></tr>'
+                );
+            w.document.write(rows);
+            w.document.write('</table><div class="dline"></div>');
+            w.document.write(
+                '<table style="font-size:12px"><tr><td>Total Cases</td><td style="text-align:right;font-weight:bold">' + totalCases + '</td></tr>' +
+                '<tr><td>Total Units</td><td style="text-align:right;font-weight:bold">' + totalUnits + '</td></tr>' +
+                '<tr><td>Gross Value</td><td style="text-align:right;font-weight:bold">' + fmtN(totalValue) + '</td></tr>'
+                );
+            if (sheet.totalDiscount > 0) w.document.write('<tr><td>Discount</td><td style="text-align:right">- ' + fmtN(sheet.totalDiscount) + '</td></tr>');
+            w.document.write(
+                '<tr style="font-size:14px;border-top:2px solid #000"><td class="bold">NET TOTAL</td><td style="text-align:right;font-weight:bold">' +
+                fmtN(totalValue - sheet.totalDiscount) + '</td></tr></table>'
+                );
+            w.document.write('<div class="dline"></div>');
+            w.document.write(
+                '<div class="center" style="font-size:9px;color:#666">Generated: ' + new Date().toLocaleString('en-IN') + ' | CoolDrink Pro</div>'
+                );
+
+            if (orderIds.length > 0) {
+                w.document.write('<div class="page-break"></div>');
+                w.document.write('<div style="font-size:14px;font-weight:bold;margin-bottom:4px">OUTLET-WISE STOCK DETAILS</div>');
+                w.document.write('<div style="font-size:10px;margin-bottom:10px;color:#666">Date: ' + fmtDate(date) +
+                    ' | Sales Person: ' + escH(spName) + '</div>');
+
+                var outletData = [];
+                orderIds.forEach(function(oid) {
+                    var order = getOrderById(oid);
+                    if (!order) return;
+                    var items2 = getOrderItems(oid);
+                    if (items2.length === 0) return;
+
+                    var byCat = {};
+                    items2.forEach(function(it) {
+                        var p = getProducts().find(function(pr) { return pr.name === it.name && pr.pack === it.pack });
+                        var cat = p ? p.cat : 'Other';
+                        if (!byCat[cat]) byCat[cat] = [];
+                        byCat[cat].push(it);
+                    });
+
+                    var totalCasesO = items2.reduce(function(s, it) { return s + it.cases }, 0);
+                    var totalAmtO = items2.reduce(function(s, it) { return s + (it.total || 0) }, 0);
+
+                    outletData.push({
+                        orderId: oid,
+                        shopName: order.shop.name,
+                        shopPhone: order.shop.phone || '',
+                        shopLocation: order.shop.location || '',
+                        byCat: byCat,
+                        totalCases: totalCasesO,
+                        totalAmt: totalAmtO
+                    });
+                });
+
+                w.document.write('<div class="outlet-grid">');
+                outletData.forEach(function(outlet) {
+                    w.document.write('<div class="outlet-block">');
+                    w.document.write('<div style="font-weight:bold;font-size:13px;margin-bottom:4px;">' + escH(outlet.shopName) + '</div>');
+                    if (outlet.shopLocation) w.document.write('<div style="font-size:9px;color:#666;">' + escH(outlet.shopLocation) + ' | ' + escH(outlet.shopPhone || outlet.orderId) + '</div>');
+                    else if (outlet.shopPhone) w.document.write('<div style="font-size:9px;color:#666;">Phone: ' + escH(outlet.shopPhone) + '</div>');
+
+                    w.document.write('<table style="width:100%;border-collapse:collapse;margin-top:6px;font-size:10px;"><tr style="background:#f5f5f5;font-weight:bold;"><th style="padding:4px 5px;text-align:left;">Item</th><th style="padding:4px 5px;text-align:center;">CS</th><th style="padding:4px 5px;text-align:center;">UTS</th></tr>');
+
+                    Object.keys(outlet.byCat).sort().forEach(function(cat) {
+                        w.document.write('<tr style="background:#edfaf7;"><td colspan="3" style="padding:4px 5px;font-weight:bold;font-size:9px;color:#0a5e52;">' + escH(cat) + '</td></tr>');
+                        outlet.byCat[cat].forEach(function(it) {
+                            w.document.write('<tr><td style="padding:3px 5px;">' + escH(it.name) + ' <span style="color:#999;font-size:8px;">' + escH(it.pack) + '</span></td><td style="padding:3px 5px;text-align:center;">' + it.cases + '</td><td style="padding:3px 5px;text-align:center;">' + (it.cases * it.units) + '</td></tr>');
+                        });
+                    });
+
+                    w.document.write('</table>');
+                    w.document.write('<div style="border-top:1px solid #ddd;margin-top:6px;padding-top:6px;font-weight:bold;font-size:11px;">Cases: ' + outlet.totalCases + ' | Amt: ' + fmtN(outlet.totalAmt) + '</div>');
+                    w.document.write('</div>');
+                });
+                w.document.write('</div>');
+            }
+
+            w.document.write('<script>window.onload=function(){window.print();}<\/script></body></html>');
+            w.document.close();
+        }
+
+        // ============================================================
+        // FIREBASE SYNC FUNCTIONS
+        // ============================================================
+        async function syncOrderToFirestore(oid) {
+            if (!firestore) return;
+            try {
+                var order = getOrderById(oid);
+                if (order) {
+                    await firestore.collection('orders').doc(oid).set({
+                        orderId: order.id,
+                        spUsername: order.sp,
+                        spName: order.spName,
+                        shopName: order.shop.name,
+                        shopPhone: order.shop.phone,
+                        shopLocation: order.shop.location,
+                        shopLat: order.shop.lat,
+                        shopLng: order.shop.lng,
+                        subtotal: order.subtotal,
+                        discount: order.discount,
+                        total: order.total,
+                        loadWeight: order.load,
+                        orderDate: order.date,
+                        status: order.status,
+                        billNumber: order.billNo,
+                        createdAt: order.ts || new Date().toISOString()
+                    }, { merge: true });
+                }
+                var items = getOrderItems(oid);
+                if (items.length > 0) {
+                    var snapshot = await firestore.collection('order_items').where('orderId', '==', oid).get();
+                    var batch = firestore.batch();
+                    snapshot.forEach(doc => batch.delete(doc.ref));
+                    await batch.commit();
+                    items.forEach(async function(item) {
+                        await firestore.collection('order_items').add({
+                            orderId: oid,
+                            productName: item.name,
+                            pack: item.pack,
+                            cases: item.cases,
+                            unitsPerCase: item.units,
+                            unitPrice: item.price,
+                            lineTotal: item.total
+                        });
+                    });
+                }
+                console.log('✅ Synced order:', oid);
+            } catch (e) {
+                console.warn('⚠️ Firebase sync error:', e);
+                throw e;
+            }
+        }
+
+        async function syncProductToFirestore(productId) {
+            if (!firestore) return;
+            try {
+                var r = db.exec("SELECT id,sku,name,pack,units,price,category,is_active,created_at,updated_at FROM products WHERE id=" + productId);
+                if (!r.length) return;
+                var row = r[0].values[0];
+                await firestore.collection('products').doc(String(productId)).set({
+                    id: row[0],
+                    sku: row[1],
+                    name: row[2],
+                    pack: row[3],
+                    units: row[4],
+                    price: row[5],
+                    category: row[6],
+                    isActive: row[7],
+                    createdAt: row[8],
+                    updatedAt: row[9] || new Date().toISOString()
+                }, { merge: true });
+                console.log('✅ Synced product:', productId);
+            } catch (e) {
+                console.warn('⚠️ Firebase sync error:', e);
+                throw e;
+            }
+        }
+
+        function printReport(spFilter, period) {
+            var data = getReportData(spFilter, period);
+            var firm = getFirm();
+            var spName = 'All Sales Persons';
+            if (spFilter) { var sr = db.exec("SELECT name FROM users WHERE username='" + esc(spFilter) + "'"); if (sr
+                    .length) spName = sr[0].values[0][0] }
+            var totalValue = data.summary.value;
+            var rows = '';
+            var lastCat = '';
+            var srNum = 0;
+            data.items.forEach(function(it) {
+                if (it.cat !== lastCat) {
+                    var catItems = data.items.filter(function(x) { return x.cat === it.cat });
+                    var catTotal = catItems.reduce(function(s, x) { return s + x.value }, 0);
+                    var catPct = totalValue > 0 ? ((catTotal / totalValue) * 100).toFixed(1) : 0;
+                    rows +=
+                        '<tr style="background:#edfaf7"><td colspan="5" style="font-weight:bold;font-size:10px;color:#0a5e52;padding:5px 4px">' +
+                        escH(it.cat) + ' <span style="font-weight:normal;font-size:9px;color:#666">(₹' + fmtN(
+                            catTotal) + ' - ' + catPct + '%)</span></td></tr>';
+                    lastCat = it.cat;
+                    srNum = 0;
+                }
+                srNum++;
+                var pct = totalValue > 0 ? ((it.value / totalValue) * 100).toFixed(1) : 0;
+                rows += '<tr><td>' + srNum + '</td><td>' + escH(it.name) +
+                    '<br><span style="font-size:9px;color:#666">' + escH(it.pack) +
+                    '</span></td><td style="text-align:center">' + it.cases +
+                    '</td><td style="text-align:right">' + fmtN(it.value) +
+                    '</td><td style="text-align:right;font-size:10px;font-weight:600;color:#0E7C6B">' + pct +
+                    '%</td></tr>';
+            });
+            var w = window.open('', '_blank', 'width=750,height=800');
+            w.document.write(
+                '<!DOCTYPE html><html><head><title>Sales Report</title><style>*{margin:0;padding:0;box-sizing:border-box}body{font-family:"Courier New",monospace;font-size:11px;padding:15px;max-width:700px;margin:0 auto;color:#000}.center{text-align:center}.bold{font-weight:bold}.line{border-top:1px dashed #000;margin:8px 0}.dline{border-top:2px double #000;margin:8px 0}table{width:100%;border-collapse:collapse}td,th{padding:4px 6px;border-bottom:1px solid #ddd;text-align:left}th{background:#f5f5f5;font-weight:bold;font-size:10px;text-transform:uppercase}.pct-col{color:#0E7C6B;font-weight:600}@media print{body{padding:10px}th{background:#f0f0f0!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}}</style></head><body>'
+                );
+            w.document.write('<div class="center bold" style="font-size:16px;margin-bottom:2px">' + escH(firm.name) +
+                '</div>');
+            w.document.write('<div class="center" style="font-size:10px;color:#666">' + (firm.address || '') + (
+                firm.gst ? ' | GSTIN: ' + firm.gst : '') + '</div>');
+            w.document.write('<div class="dline"></div>');
+            w.document.write(
+                '<div style="font-size:14px;font-weight:bold;margin-bottom:4px">SALES REPORT</div>'
+                );
+            w.document.write('<div style="font-size:10px;margin-bottom:4px">Period: <strong>' + fmtDate(data.from) +
+                ' to ' + fmtDate(data.to) + '</strong></div>');
+            w.document.write('<div style="font-size:10px;margin-bottom:6px">Sales Person: <strong>' + escH(spName) +
+                '</strong></div>');
+            w.document.write(
+                '<div class="line"></div><table><tr><th>#</th><th>Product</th><th style="text-align:center">Cases</th><th style="text-align:right">Value</th><th style="text-align:right">Contribution</th></tr>'
+                );
+            w.document.write(rows);
+            w.document.write('</table><div class="dline"></div>');
+            w.document.write(
+                '<table style="font-size:12px"><tr><td>Total Orders</td><td style="text-align:right;font-weight:bold">' +
+                data.summary.orders + '</td></tr>' +
+                '<tr><td>Total Cases</td><td style="text-align:right;font-weight:bold">' + data.summary.cases +
+                '</td></tr>' +
+                '<tr><td>Total Units</td><td style="text-align:right;font-weight:bold">' + data.summary.units +
+                '</td></tr>' +
+                '<tr><td>Gross Value</td><td style="text-align:right;font-weight:bold">' + fmtN(data.summary
+                    .value) + '</td></tr>'
+                );
+            if (data.summary.discount > 0) w.document.write('<tr><td>Discount</td><td style="text-align:right">- ' +
+                fmtN(data.summary.discount) + '</td></tr>');
+            w.document.write(
+                '<tr style="font-size:14px;border-top:2px solid #000"><td class="bold">NET VALUE</td><td style="text-align:right;font-weight:bold">' +
+                fmtN(data.summary.value - data.summary.discount) + '</td></tr></table>'
+                );
+            w.document.write(
+                '<div class="dline"></div><div class="center" style="font-size:9px;color:#666">Generated: ' + new Date()
+                .toLocaleString('en-IN') + ' | CoolDrink Pro</div>'
+                );
+            w.document.write(
+                '<script>window.onload=function(){window.print();}<\/script></body></html>');
+            w.document.close();
+        }
+
+        function downloadAllOrders() {
+            var orders = db.exec("SELECT order_id,sp_username,sp_name,shop_name,shop_phone,shop_location,subtotal,discount,total,load_weight,order_date,status,bill_number,created_at FROM orders ORDER BY created_at DESC");
+            if (!orders.length || !orders[0].values.length) { toast('No orders to download', 'info'); return }
+            var rows = orders[0].values;
+            var headers = ['Order ID', 'Sales Person', 'Sales Name', 'Shop Name', 'Phone', 'Location', 'Subtotal', 'Discount', 'Total', 'Load (kg)', 'Date', 'Status', 'Bill No', 'Created At'];
+            var csv = headers.join(',') + '\n';
+            rows.forEach(function(row) {
+                csv += row.map(function(cell) {
+                    if (cell === null || cell === undefined) return '';
+                    var s = String(cell);
+                    if (s.includes(',') || s.includes('"') || s.includes('\n')) s = '"' + s.replace(/"/g, '""') + '"';
+                    return s;
+                }).join(',') + '\n';
+            });
+            var blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            var link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = 'orders_' + today() + '.csv';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(link.href);
+            toast('Orders downloaded as CSV', 'success');
+        }
+
+        // ============================================================
+        // VIEW ORDER DETAIL
+        // ============================================================
+        function viewOrderDetail(oid) { S.orderDetailId = oid; render() }
+        function closeOrderDetail() { S.orderDetailId = null; document.getElementById('modal-root').innerHTML = ''; render() }
+
+        // ============================================================
+        // MODALS
+        // ============================================================
+        function renderModals() {
+            var root = document.getElementById('modal-root');
+            if (!root) return;
+            var html = '';
+
+            if (S.orderDetailId) {
+                var order = getOrderById(S.orderDetailId);
+                if (order) {
+                    var items = getOrderItems(order.id);
+                    var statusClr = order.status === 'closed' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700';
+                    html += '<div class="fixed inset-0 z-[100] flex items-end sm:items-center justify-center" onclick="if(event.target===this)closeOrderDetail();"><div class="absolute inset-0 overlay"></div>' +
+                        '<div class="relative bg-white rounded-t-2xl sm:rounded-2xl w-full sm:max-w-lg max-h-[85vh] overflow-y-auto modal-enter">' +
+                        '<div class="sticky top-0 bg-white px-4 py-3 border-b border-gray-100 flex items-center justify-between rounded-t-2xl sm:rounded-t-2xl z-10"><h3 class="font-display font-bold text-sm">Order Details</h3><button onclick="closeOrderDetail()" class="text-gray-400 hover:text-gray-600 touch-target p-1"><i class="fa-solid fa-xmark"></i></button></div>' +
+                        '<div class="p-4">' +
+                        '<div class="flex items-center justify-between mb-3"><span class="text-[10px] text-gray-400">' + order.id + '</span><span class="text-[10px] font-semibold px-2 py-0.5 rounded-full ' + statusClr + '">' + (order.status === 'closed' ? 'Delivered' : 'Open') + '</span></div>' +
+                        '<div class="bg-gray-50 rounded-xl p-3 mb-3 space-y-1"><div class="font-bold text-sm">' + escH(order.shop.name) + '</div><div class="text-xs text-gray-500">' + escH(order.shop.phone) + ' | ' + escH(order.shop.location) + '</div><div class="text-xs text-gray-500">Sales: ' + escH(order.spName) + ' | Date: ' + fmtDate(order.date) + '</div></div>' +
+                        '<div class="space-y-1 mb-3">' + items.map(function(it) { return '<div class="flex items-center justify-between text-xs py-1 border-b border-gray-50"><div class="flex-1 min-w-0"><span class="font-medium">' + escH(it.name) + '</span> <span class="text-gray-400">' + escH(it.pack) + '</span></div><span class="ml-2 font-semibold">' + it.cases + 'cs</span><span class="ml-2 w-16 text-right">' + (it.total ? fmtN(it.total) : '-') + '</span></div>' }).join('') + '</div>' +
+                        '<div class="border-t border-gray-200 pt-2 space-y-1 text-xs"><div class="flex justify-between"><span>Subtotal</span><span class="font-semibold">' + fmtN(order.subtotal) + '</span></div>' +
+                        (order.discount > 0 ? '<div class="flex justify-between text-red-500"><span>Discount</span><span>- ' + fmtN(order.discount) + '</span></div>' : '') +
+                        '<div class="flex justify-between text-sm font-bold border-t border-gray-200 pt-1"><span>Total</span><span class="text-pri">' + fmt(order.total) + '</span></div>' +
+                        '<div class="flex justify-between text-gray-400"><span>Load Weight</span><span>' + fmtKg(order.load) + '</span></div></div>' +
+                        '</div></div></div>';
+                }
+            }
+
+            if (S.productModal) {
+                var p = S.editingProduct || { sku: '', name: '', pack: '', units: 24, price: null, cat: 'Campa' };
+                var allCats = ['Campa', 'Cans', 'Club Soda', 'Water', 'Jeera Up', 'Raskik', 'Energy', 'Spinner', 'Suncrush', 'Milkshake'];
+                html += '<div class="fixed inset-0 z-[100] flex items-end sm:items-center justify-center" onclick="if(event.target===this){S.productModal=null;S.editingProduct=null;render();}"><div class="absolute inset-0 overlay"></div>' +
+                    '<div class="relative bg-white rounded-t-2xl sm:rounded-2xl w-full sm:max-w-md max-h-[85vh] overflow-y-auto modal-enter">' +
+                    '<div class="sticky top-0 bg-white px-4 py-3 border-b border-gray-100 flex items-center justify-between rounded-t-2xl z-10"><h3 class="font-display font-bold text-sm">' + (S.editingProduct ? 'Edit Product' : 'Add Product') + '</h3><button onclick="S.productModal=null;S.editingProduct=null;render();" class="text-gray-400 hover:text-gray-600 touch-target p-1"><i class="fa-solid fa-xmark"></i></button></div>' +
+                    '<div class="p-4 space-y-3">' +
+                    '<div><label class="text-xs font-semibold text-gray-500">SKU *</label><input id="pd-sku" type="text" value="' + escH(p.sku) + '" class="w-full mt-1 px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-pri"></div>' +
+                    '<div><label class="text-xs font-semibold text-gray-500">Product Name *</label><input id="pd-name" type="text" value="' + escH(p.name) + '" class="w-full mt-1 px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-pri"></div>' +
+                    '<div class="grid grid-cols-2 gap-3"><div><label class="text-xs font-semibold text-gray-500">Pack Size *</label><input id="pd-pack" type="text" value="' + escH(p.pack) + '" placeholder="200ml" class="w-full mt-1 px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-pri"></div><div><label class="text-xs font-semibold text-gray-500">Units/Case</label><input id="pd-units" type="number" value="' + p.units + '" class="w-full mt-1 px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-pri"></div></div>' +
+                    '<div class="grid grid-cols-2 gap-3"><div><label class="text-xs font-semibold text-gray-500">Price</label><input id="pd-price" type="number" value="' + (p.price || '') + '" placeholder="0" class="w-full mt-1 px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-pri"></div><div><label class="text-xs font-semibold text-gray-500">Category *</label><select id="pd-cat" class="w-full mt-1 px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-pri">' + allCats.map(function(c) { return '<option ' + (p.cat === c ? 'selected' : '') + '>' + c + '</option>' }).join('') + '</select></div></div>' +
+                    '<button onclick="saveProduct()" class="w-full py-3 rounded-xl bg-pri text-white font-semibold text-sm btn-press touch-target">' + (S.editingProduct ? 'Update Product' : 'Add Product') + '</button>' +
+                    '</div></div></div>';
+            }
+
+            if (S.userModal) {
+                var u = S.editingUser || { username: '', password: '', name: '', role: 'sales', area: '' };
+                html += '<div class="fixed inset-0 z-[100] flex items-end sm:items-center justify-center" onclick="if(event.target===this){S.userModal=null;S.editingUser=null;render();}"><div class="absolute inset-0 overlay"></div>' +
+                    '<div class="relative bg-white rounded-t-2xl sm:rounded-2xl w-full sm:max-w-md max-h-[85vh] overflow-y-auto modal-enter">' +
+                    '<div class="sticky top-0 bg-white px-4 py-3 border-b border-gray-100 flex items-center justify-between rounded-t-2xl z-10"><h3 class="font-display font-bold text-sm">' + (S.editingUser ? 'Edit User' : 'Add User') + '</h3><button onclick="S.userModal=null;S.editingUser=null;render();" class="text-gray-400 hover:text-gray-600 touch-target p-1"><i class="fa-solid fa-xmark"></i></button></div>' +
+                    '<div class="p-4 space-y-3">' +
+                    '<div><label class="text-xs font-semibold text-gray-500">Username *</label><input id="usr-name" type="text" value="' + escH(u.username) + '" class="w-full mt-1 px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-pri"></div>' +
+                    '<div><label class="text-xs font-semibold text-gray-500">Password *</label><input id="usr-pass" type="password" value="' + escH(u.password) + '" class="w-full mt-1 px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-pri"></div>' +
+                    '<div><label class="text-xs font-semibold text-gray-500">Full Name *</label><input id="usr-full" type="text" value="' + escH(u.name) + '" class="w-full mt-1 px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-pri"></div>' +
+                    '<div class="grid grid-cols-2 gap-3"><div><label class="text-xs font-semibold text-gray-500">Role *</label><select id="usr-role" class="w-full mt-1 px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-pri"><option value="sales" ' + (u.role === 'sales' ? 'selected' : '') + '>Sales</option><option value="ase" ' + (u.role === 'ase' ? 'selected' : '') + '>ASE</option><option value="admin" ' + (u.role === 'admin' ? 'selected' : '') + '>Admin</option></select></div><div><label class="text-xs font-semibold text-gray-500">Area</label><input id="usr-area" type="text" value="' + escH(u.area || '') + '" class="w-full mt-1 px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-pri"></div></div>' +
+                    '<button onclick="saveUser()" class="w-full py-3 rounded-xl bg-pri text-white font-semibold text-sm btn-press touch-target">' + (S.editingUser ? 'Update User' : 'Create User') + '</button>' +
+                    '</div></div></div>';
+            }
+
+            if (S.assetModal) {
+                var a = S.editingAsset || { shopName: '', shopPhone: '', shopAddress: '', assetNumber: '', notes: '' };
+                var uploadProgressHtml = '';
+                if (S.isUploading && S.uploadProgress > 0) {
+                    uploadProgressHtml = '<div class="upload-progress"><div class="upload-progress-bar" style="width:' + S.uploadProgress + '%"></div></div>';
+                }
+                html += '<div class="fixed inset-0 z-[100] flex items-end sm:items-center justify-center" onclick="if(event.target===this){S.assetModal=null;S.editingAsset=null;S.assetPhoto=\'\';S.assetPhotoPreview=\'\';S.assetFile=null;S.isUploading=false;S.uploadProgress=0;render();}"><div class="absolute inset-0 overlay"></div>' +
+                    '<div class="relative bg-white rounded-t-2xl sm:rounded-2xl w-full sm:max-w-md max-h-[85vh] overflow-y-auto modal-enter">' +
+                    '<div class="sticky top-0 bg-white px-4 py-3 border-b border-gray-100 flex items-center justify-between rounded-t-2xl z-10"><h3 class="font-display font-bold text-sm">' + (S.editingAsset ? 'Edit Asset' : 'Add Asset') + '</h3><button onclick="S.assetModal=null;S.editingAsset=null;S.assetPhoto=\'\';S.assetPhotoPreview=\'\';S.assetFile=null;S.isUploading=false;S.uploadProgress=0;render();" class="text-gray-400 hover:text-gray-600 touch-target p-1"><i class="fa-solid fa-xmark"></i></button></div>' +
+                    '<div class="p-4 space-y-3">' +
+                    '<div><label class="text-xs font-semibold text-gray-500">Asset Number *</label><input id="ast-number" type="text" value="' + escH(a.assetNumber) + '" class="w-full mt-1 px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-pri"></div>' +
+                    '<div><label class="text-xs font-semibold text-gray-500">Shop Name *</label><input id="ast-shop" type="text" value="' + escH(a.shopName) + '" class="w-full mt-1 px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-pri"></div>' +
+                    '<div class="grid grid-cols-2 gap-3"><div><label class="text-xs font-semibold text-gray-500">Phone</label><input id="ast-phone" type="text" value="' + escH(a.shopPhone || '') + '" class="w-full mt-1 px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-pri"></div><div><label class="text-xs font-semibold text-gray-500">Address</label><input id="ast-address" type="text" value="' + escH(a.shopAddress || '') + '" class="w-full mt-1 px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-pri"></div></div>' +
+                    '<div><label class="text-xs font-semibold text-gray-500">Photo</label><input type="file" accept="image/*" capture="environment" onchange="handleAssetPhoto(this)" class="w-full mt-1 text-sm text-gray-500 file:mr-2 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:bg-pri-50 file:text-pri file:font-medium"></div>' +
+                    (S.assetPhotoPreview ? '<div class="rounded-xl overflow-hidden border border-gray-200"><img src="' + S.assetPhotoPreview + '" class="w-full max-h-40 object-cover"></div>' : '') +
+                    uploadProgressHtml +
+                    '<div><label class="text-xs font-semibold text-gray-500">Notes</label><textarea id="ast-notes" class="w-full mt-1 px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-pri" rows="2">' + escH(a.notes || '') + '</textarea></div>' +
+                    '<button onclick="saveAsset()" class="w-full py-3 rounded-xl bg-pri text-white font-semibold text-sm btn-press touch-target" ' + (S.isUploading ? 'disabled' : '') + '>' + (S.isUploading ? 'Uploading...' : (S.editingAsset ? 'Update Asset' : 'Add Asset')) + '</button>' +
+                    '</div></div></div>';
+            }
+
+            if (S.assetViewId) {
+                var av = getAssetById(S.assetViewId);
+                if (av) {
+                    html += '<div class="fixed inset-0 z-[100] flex items-end sm:items-center justify-center" onclick="if(event.target===this){S.assetViewId=null;render();}"><div class="absolute inset-0 overlay"></div>' +
+                        '<div class="relative bg-white rounded-t-2xl sm:rounded-2xl w-full sm:max-w-md max-h-[85vh] overflow-y-auto modal-enter">' +
+                        '<div class="sticky top-0 bg-white px-4 py-3 border-b border-gray-100 flex items-center justify-between rounded-t-2xl z-10"><h3 class="font-display font-bold text-sm">Asset Details</h3><button onclick="S.assetViewId=null;render();" class="text-gray-400 hover:text-gray-600 touch-target p-1"><i class="fa-solid fa-xmark"></i></button></div>' +
+                        '<div class="p-4">' +
+                        (av.photo ? '<div class="rounded-xl overflow-hidden border border-gray-200 mb-3"><img src="' + av.photo + '" class="w-full max-h-60 object-cover" onerror="this.src=\'\';this.parentElement.innerHTML=\'<div class=\\\'bg-gray-100 h-40 flex items-center justify-center text-gray-400\\\'><i class=\\\'fa-solid fa-image text-3xl\\\'></i></div>\'"></div>' : '<div class="bg-gray-100 rounded-xl h-40 flex items-center justify-center mb-3 text-gray-400"><i class="fa-solid fa-image text-3xl"></i></div>') +
+                        '<div class="space-y-2">' +
+                        '<div class="flex justify-between text-sm"><span class="text-gray-500">Asset No.</span><span class="font-bold">' + escH(av.assetNumber) + '</span></div>' +
+                        '<div class="flex justify-between text-sm"><span class="text-gray-500">Shop</span><span class="font-medium">' + escH(av.shopName) + '</span></div>' +
+                        '<div class="flex justify-between text-sm"><span class="text-gray-500">Phone</span><span>' + escH(av.shopPhone || '-') + '</span></div>' +
+                        '<div class="flex justify-between text-sm"><span class="text-gray-500">Address</span><span class="text-right max-w-[60%]">' + escH(av.shopAddress || '-') + '</span></div>' +
+                        (av.notes ? '<div class="text-sm"><span class="text-gray-500">Notes:</span><div class="mt-1 text-gray-700 bg-gray-50 rounded-lg p-2 text-xs">' + escH(av.notes) + '</div></div>' : '') +
+                        '<div class="flex justify-between text-xs text-gray-400 pt-2 border-t border-gray-100"><span>Added: ' + fmtDate(av.createdAt) + '</span><span>By: ' + escH(av.createdBy) + '</span></div>' +
+                        '</div>' +
+                        '<div class="flex gap-2 mt-4">' +
+                        '<button onclick="S.assetViewId=null;S.editingAsset=' + JSON.stringify(av).replace(/"/g, '&quot;') + ';S.assetPhoto=av.photo||\'\';S.assetPhotoPreview=av.photo||\'\';S.assetFile=null;S.assetModal=true;render();" class="flex-1 py-2.5 rounded-xl bg-pri text-white text-xs font-semibold btn-press touch-target"><i class="fa-solid fa-pen mr-1"></i>Edit</button>' +
+                        '<button onclick="deleteAsset(' + av.id + ')" class="py-2.5 px-4 rounded-xl bg-red-50 text-red-600 text-xs font-semibold btn-press touch-target"><i class="fa-solid fa-trash"></i></button>' +
+                        '</div></div></div></div>';
+                }
+            }
+
+            root.innerHTML = html;
+        }
+
+        function handleAssetPhoto(input) {
+            var file = input.files[0];
+            if (!file) return;
+            
+            // Store the file for later upload
+            S.assetFile = file;
+            
+            // Show preview
+            var reader = new FileReader();
+            reader.onload = function(e) { 
+                S.assetPhoto = e.target.result;  // Keep as backup
+                S.assetPhotoPreview = e.target.result; 
+                render() 
+            };
+            reader.readAsDataURL(file);
+        }
+
+        // ============================================================
+        // SELECT / CLEAR OUTLETS
+        // ============================================================
+        function selectAllOutlets() {
+            var date = S.adminDate || today();
+            var spFilter = S.adminSP || null;
+            var sql = "SELECT order_id,shop_name FROM orders WHERE order_date='" + date + "'";
+            if (spFilter) sql += " AND sp_username='" + esc(spFilter) + "'";
+            sql += " ORDER BY shop_name";
+            var outlets = db.exec(sql);
+            var outletData = outlets.length ? outlets[0].values.map(function(row) { return { orderId: row[0], shopName: row[1] } }) : [];
+            outletData.forEach(function(x) { S.loadSelection[x.orderId] = true });
+            S._skipEnsure = true;
+            render()
+        }
+
+        function clearOutlets() { S.loadSelection = {}; S._skipEnsure = true; render() }
+        function toggleOutlet(orderId) { S.loadSelection[orderId] = !S.loadSelection[orderId]; render() }
+
+        // ============================================================
+        // INIT DB
+        // ============================================================
+        async function initDB() {
+            try {
+                var SQL = await initSqlJs({ locateFile: function(f) { return 'https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.3/' + f } });
+                
+                try {
+                    var data = await new Promise(function(res) {
+                        var req = indexedDB.open('CoolDrinkDB', 1);
+                        req.onupgradeneeded = function(e) { e.target.result.createObjectStore('database') };
+                        req.onsuccess = function(e) { var tx = e.target.result.transaction('database', 'readonly'); var g = tx.objectStore('database').get('main'); g.onsuccess = function() { res(g.result) }; g.onerror = function() { res(null) } };
+                        req.onerror = function() { res(null) };
+                    });
+                    if (data) db = new SQL.Database(data);
+                    else db = new SQL.Database();
+                } catch (e) { db = new SQL.Database(); }
+
+                db.run("CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY AUTOINCREMENT,username TEXT UNIQUE NOT NULL,password TEXT NOT NULL,name TEXT NOT NULL,role TEXT NOT NULL CHECK(role IN ('admin','ase','sales')),area TEXT DEFAULT '',is_active INTEGER DEFAULT 1,created_at TEXT DEFAULT (datetime('now','localtime')))");
+                db.run("CREATE TABLE IF NOT EXISTS products (id INTEGER PRIMARY KEY AUTOINCREMENT,sku TEXT UNIQUE NOT NULL,name TEXT NOT NULL,pack TEXT NOT NULL,units INTEGER NOT NULL DEFAULT 24,price REAL,category TEXT NOT NULL,is_active INTEGER DEFAULT 1,created_at TEXT DEFAULT (datetime('now','localtime')),updated_at TEXT DEFAULT (datetime('now','localtime')))");
+                db.run("CREATE TABLE IF NOT EXISTS old_skus (id INTEGER PRIMARY KEY AUTOINCREMENT,product_id INTEGER NOT NULL,old_sku TEXT NOT NULL,product_name TEXT NOT NULL,changed_at TEXT DEFAULT (datetime('now','localtime')),changed_by TEXT)");
+                db.run("CREATE TABLE IF NOT EXISTS orders (id INTEGER PRIMARY KEY AUTOINCREMENT,order_id TEXT UNIQUE NOT NULL,sp_username TEXT NOT NULL,sp_name TEXT NOT NULL,shop_name TEXT NOT NULL,shop_phone TEXT DEFAULT '',shop_location TEXT DEFAULT '',shop_lat REAL,shop_lng REAL,subtotal REAL DEFAULT 0,discount REAL DEFAULT 0,total REAL DEFAULT 0,load_weight REAL DEFAULT 0,order_date TEXT NOT NULL,status TEXT DEFAULT 'open',bill_number INTEGER,created_at TEXT DEFAULT (datetime('now','localtime')))");
+                db.run("CREATE TABLE IF NOT EXISTS order_items (id INTEGER PRIMARY KEY AUTOINCREMENT,order_id TEXT NOT NULL,product_id INTEGER NOT NULL,product_name TEXT NOT NULL,pack TEXT NOT NULL,cases INTEGER NOT NULL,units_per_case INTEGER NOT NULL,unit_price REAL,line_total REAL DEFAULT 0)");
+                db.run("CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY,value TEXT NOT NULL)");
+                db.run("CREATE TABLE IF NOT EXISTS assets (id INTEGER PRIMARY KEY AUTOINCREMENT,shop_name TEXT NOT NULL,shop_phone TEXT DEFAULT '',shop_address TEXT DEFAULT '',asset_number TEXT NOT NULL UNIQUE,photo TEXT DEFAULT '',notes TEXT DEFAULT '',created_at TEXT DEFAULT (datetime('now','localtime')),created_by TEXT DEFAULT '')");
+                try { db.run("ALTER TABLE orders ADD COLUMN status TEXT DEFAULT 'open'") } catch (e) {}
+                try { db.run("ALTER TABLE orders ADD COLUMN bill_number INTEGER") } catch (e) {}
+
+                var userCount = db.exec("SELECT COUNT(*) FROM users");
+                if (!userCount.length || userCount[0].values[0][0] === 0) {
+                    db.run("INSERT INTO users (username,password,name,role,area) VALUES ('admin','admin123','Administrator','admin','All')");
+                    db.run("INSERT INTO users (username,password,name,role,area) VALUES ('ase','ase123','Area Sales Executive','ase','All')");
+                    db.run("INSERT INTO users (username,password,name,role,area) VALUES ('rajesh','raj123','Rajesh Kumar','sales','Zone A - Central')");
+                    db.run("INSERT INTO users (username,password,name,role,area) VALUES ('suresh','sur123','Suresh Yadav','sales','Zone B - North')");
+                    db.run("INSERT INTO users (username,password,name,role,area) VALUES ('mahesh','mah123','Mahesh Patil','sales','Zone C - South')");
+                }
+
+                db.run("INSERT OR IGNORE INTO settings (key,value) VALUES ('firm_name','Vijayeswara Agencies')");
+                db.run("INSERT OR IGNORE INTO settings (key,value) VALUES ('firm_gst','')");
+                db.run("INSERT OR IGNORE INTO settings (key,value) VALUES ('firm_phone','')");
+                db.run("INSERT OR IGNORE INTO settings (key,value) VALUES ('firm_address','')");
+                db.run("INSERT OR IGNORE INTO settings (key,value) VALUES ('bill_counter','1000')");
+
+                var prodCount = db.exec("SELECT COUNT(*) FROM products");
+                if (!prodCount.length || prodCount[0].values[0][0] === 0) {
+                    var SEED = [
+                        ["Campa Cola", "200ml", 30, 240, "Campa"],
+                        ["Campa Orange", "200ml", 30, 240, "Campa"],
+                        ["Campa Lemon", "200ml", 30, 240, "Campa"],
+                        ["Campa Power Up", "200ml", 30, 240, "Campa"],
+                        ["Campa Cola", "500ml", 24, 385, "Campa"],
+                        ["Campa Orange", "500ml", 24, 385, "Campa"],
+                        ["Campa Lemon", "500ml", 24, 385, "Campa"],
+                        ["Campa Power Up", "500ml", 24, 385, "Campa"],
+                        ["Campa Cola", "1Ltr", 12, 420, "Campa"],
+                        ["Campa Orange", "1Ltr", 12, 420, "Campa"],
+                        ["Campa Lemon", "1Ltr", 12, 420, "Campa"],
+                        ["Campa Power Up", "1Ltr", 12, 420, "Campa"],
+                        ["Campa Cola", "2Ltr", 9, 720, "Campa"],
+                        ["Campa Orange", "2Ltr", 9, 720, "Campa"],
+                        ["Campa Lemon", "2Ltr", 9, 720, "Campa"],
+                        ["Campa Power Up", "2Ltr", 9, 720, "Campa"],
+                        ["Campa Cola Cans", "185ml", 24, 625, "Cans"],
+                        ["Campa Orange Cans", "185ml", 24, 625, "Cans"],
+                        ["Campa Lemon Cans", "185ml", 24, 625, "Cans"],
+                        ["Campa Power Up Cans", "185ml", 24, 625, "Cans"],
+                        ["Campa Cola Zero Cans", "185ml", 24, null, "Cans"],
+                        ["Gold Booster Can", "185ml", 24, 625, "Cans"],
+                        ["Suncrush Orange Can", "180ml", 24, 600, "Cans"],
+                        ["Suncrush Mix Fruit Can", "180ml", 24, 600, "Cans"],
+                        ["Suncrush Mango Can", "185ml", 24, 600, "Cans"],
+                        ["Energy Drink Can", "330ml", 24, null, "Cans"],
+                        ["Campa Club Soda", "200ml", 30, null, "Club Soda"],
+                        ["Campa Club Soda", "250ml", 30, null, "Club Soda"],
+                        ["Campa Club Soda", "500ml", 24, 250, "Club Soda"],
+                        ["Independence Water", "750ml", 15, 100, "Water"],
+                        ["Independence Water", "750ml", 24, 160, "Water"],
+                        ["Independence Gold Water", "750ml", 15, 135, "Water"],
+                        ["Independence Gold Water", "750ml", 24, null, "Water"],
+                        ["Independence Water", "1Ltr", 12, null, "Water"],
+                        ["Independence Water", "1.5Ltr", 9, 100, "Water"],
+                        ["Independence Water", "1.5Ltr", 12, 130, "Water"],
+                        ["Independence Water", "2Ltr", 6, null, "Water"],
+                        ["Jeera Up", "150ml", 30, 240, "Jeera Up"],
+                        ["Jeera Up", "500ml", 24, 385, "Jeera Up"],
+                        ["Raskik Mango (Tpk)", "125ml", 40, 290, "Raskik"],
+                        ["Raskik Mango", "150ml", 30, 240, "Raskik"],
+                        ["Raskik Nimbu Pani", "150ml", 30, 240, "Raskik"],
+                        ["Raskik Gluco Energy", "150ml", 30, 240, "Raskik"],
+                        ["Raskik Apple", "150ml", 30, 240, "Raskik"],
+                        ["Raskik Mix Fruit", "150ml", 30, 240, "Raskik"],
+                        ["Raskik Gluco Energy Cup", "180ml", 24, 160, "Raskik"],
+                        ["Raskik Nimbu Pani Cup", "180ml", 24, 160, "Raskik"],
+                        ["Raskik Mango", "500ml", 24, 480, "Raskik"],
+                        ["Raskik Berry Kick", "150ml", 30, null, "Raskik"],
+                        ["Raskik Lemon Kick", "150ml", 30, null, "Raskik"],
+                        ["Raskik Cola Kick", "150ml", 30, null, "Raskik"],
+                        ["Energy Berry Kick", "150ml", 30, 240, "Energy"],
+                        ["Energy Berry Kick", "250ml", 30, 450, "Energy"],
+                        ["Energy Lemon Kick", "250ml", 30, null, "Energy"],
+                        ["Energy Cola Kick", "250ml", 30, null, "Energy"],
+                        ["Spinner Nitro Blue", "150ml", 30, null, "Spinner"],
+                        ["Spinner Orange", "150ml", 30, null, "Spinner"],
+                        ["Spinner Lemon", "150ml", 30, null, "Spinner"],
+                        ["Suncrush Orange", "200ml", 24, 385, "Suncrush"],
+                        ["Suncrush Mix Fruit", "200ml", 24, 385, "Suncrush"],
+                        ["Suncrush Mango", "200ml", 24, 385, "Suncrush"],
+                        ["Suncrush Orange", "500ml", 24, 810, "Suncrush"],
+                        ["Suncrush Mix Fruit", "500ml", 24, 810, "Suncrush"],
+                        ["Suncrush Mango", "500ml", 24, 810, "Suncrush"],
+                        ["Milkshake Mango (Tpk)", "200ml", 24, null, "Milkshake"],
+                        ["Milkshake Choco (Tpk)", "200ml", 24, null, "Milkshake"],
+                        ["Milkshake Vanilla (Tpk)", "200ml", 24, null, "Milkshake"]
+                    ];
+                    var cc = {};
+                    SEED.forEach(function(p) {
+                        if (!cc[p[4]]) cc[p[4]] = 0;
+                        cc[p[4]]++;
+                        var sku = genSKU(p[4], cc[p[4]]);
+                        db.run("INSERT INTO products (sku,name,pack,units,price,category) VALUES ('" + sku + "','" + esc(p[0]) + "','" + esc(p[1]) + "'," + p[2] + "," + (p[3] === null ? 'NULL' : p[3]) + ",'" + esc(p[4]) + "')");
+                    });
+                }
+                saveDB();
+                S.dbReady = true;
+
+                try {
+                    if (firestore) {
+                        console.log('✅ Firebase is connected, data will sync automatically');
+                    }
+                    if (storage) {
+                        console.log('✅ Firebase Storage is connected, asset images will be stored in cloud');
+                    }
+                } catch (e) {
+                    console.warn('⚠️ Firebase connection issue:', e);
+                }
+
+                render();
+            } catch (e) {
+                console.error('Init error:', e);
+                var app = document.getElementById('app');
+                if (app) {
+                    app.innerHTML = '<div class="flex items-center justify-center min-h-screen bg-surface"><div class="text-center text-danger"><i class="fa-solid fa-exclamation-triangle text-4xl mb-3"></i><p class="text-sm">Failed to initialize database</p><p class="text-xs text-gray-400 mt-1">' + e.message + '</p></div></div>';
+                }
+            }
+        }
+
+        // ============================================================
+        // EVENT LISTENERS
+        // ============================================================
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter' && S.view === 'login') { handleLogin() }
+        });
+
+        window.addEventListener('popstate', function(e) {
+            if (S.view === 'login') return;
+            if (S.role === 'sales') {
+                if (S.view === 'new-order' && S.cartOpen) { S.cartOpen = false; render(); history.pushState(null, ''); return }
+                if (S.view !== 'new-order') { S.view = 'new-order'; render(); history.pushState(null, ''); return }
+            } else if (S.role === 'ase') {
+                if (S.view === 'new-order' && S.cartOpen) { S.cartOpen = false; render(); history.pushState(null, ''); return }
+                if (S.view !== 'ase-dashboard') { S.view = 'ase-dashboard'; render(); history.pushState(null, ''); return }
+            } else {
+                if (S.orderDetailId) { closeOrderDetail(); history.pushState(null, ''); return }
+                if (S.productModal || S.userModal || S.assetModal || S.assetViewId) { S.productModal = null; S.userModal = null; S.assetModal = null; S.assetViewId = null; S.editingProduct = null; S.editingUser = null; S.editingAsset = null; S.assetPhoto = ''; S.assetPhotoPreview = ''; S.assetFile = null; S.isUploading = false; S.uploadProgress = 0; render(); history.pushState(null, ''); return }
+                if (S.moreMenuOpen) { S.moreMenuOpen = false; render(); history.pushState(null, ''); return }
+                var subViews = ['products', 'users', 'assets', 'settings'];
+                if (subViews.indexOf(S.adminView) > -1) { S.adminView = 'dashboard'; render(); history.pushState(null, ''); return }
+                if (S.adminView !== 'dashboard') { S.adminView = 'dashboard'; render(); history.pushState(null, ''); return }
+            }
+        });
+        history.replaceState(null, '');
+
+        // ============================================================
+        // START APP
+        // ============================================================
+        initDB();
+    </script>
+</body>
+</html>

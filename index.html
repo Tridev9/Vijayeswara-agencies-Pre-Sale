@@ -1408,11 +1408,17 @@
         }
 
         // ============================================================
-        // SALES LOAD SHEET
+        // SALES LOAD SHEET - FIXED VERSION
         // ============================================================
         function renderSalesLoadSheet() {
             var outlets = db.exec("SELECT order_id,shop_name FROM orders WHERE sp_username='" + esc(S.user) + "' AND order_date='" + today() + "' ORDER BY shop_name");
             var outletData = outlets.length ? outlets[0].values.map(function(row) { return { orderId: row[0], shopName: row[1] } }) : [];
+            
+            // Ensure load selection is initialized
+            if (!S._skipEnsure && outletData.length > 0 && Object.keys(S.loadSelection).length === 0) {
+                outletData.forEach(function(x) { S.loadSelection[x.orderId] = true });
+            }
+            
             var selIds = Object.keys(S.loadSelection).filter(function(k) { return S.loadSelection[k] });
 
             var sheet = getLoadSheet(today(), S.user, selIds);
@@ -1429,7 +1435,7 @@
             outletListHtml += '</div>';
 
             var loadTable = '<div class="bg-white rounded-xl card-shadow overflow-hidden mb-3">';
-            if (sheet.items.length) {
+            if (sheet.items && sheet.items.length) {
                 var lastCat = '';
                 var srNum = 0;
                 var tRows = '';
@@ -1442,8 +1448,8 @@
             } else loadTable += '<div class="p-6 text-center text-gray-400 text-sm"><i class="fa-solid fa-box-open text-2xl mb-2"></i><p>No items</p></div>';
             loadTable +=
                 '<div class="p-3 bg-gray-50 border-t border-gray-100 grid grid-cols-2 gap-2 text-xs">' +
-                '<div><span class="text-gray-500 block text-[10px]">Cases</span><span class="font-bold">' + sheet.items.reduce(function(s, i) { return s + i.cases }, 0) + '</span></div>' +
-                '<div><span class="text-gray-500 block text-[10px]">Net</span><span class="font-bold text-pri">' + fmtN(sheet.items.reduce(function(s, i) { return s + i.amount }, 0) - sheet.totalDiscount) + '</span></div>' +
+                '<div><span class="text-gray-500 block text-[10px]">Cases</span><span class="font-bold">' + (sheet.items ? sheet.items.reduce(function(s, i) { return s + i.cases }, 0) : 0) + '</span></div>' +
+                '<div><span class="text-gray-500 block text-[10px]">Net</span><span class="font-bold text-pri">' + fmtN((sheet.items ? sheet.items.reduce(function(s, i) { return s + i.amount }, 0) : 0) - (sheet.totalDiscount || 0)) + '</span></div>' +
                 '</div></div>';
 
             var printBtn = '<button onclick="printLoadSheet(\'' + today() + '\',\'' + esc(S.user) + '\',\'selected\')" class="w-full py-3 rounded-xl bg-pri text-white font-semibold text-sm btn-press touch-target"><i class="fa-solid fa-print mr-2"></i>Print Load Sheet + Bills</button>';
@@ -1538,7 +1544,7 @@
         }
 
         // ============================================================
-        // ASE LOAD SHEET
+        // ASE LOAD SHEET - FIXED VERSION
         // ============================================================
         function renderASELoadSheet() {
             var spData = getAllSalesPersons();
@@ -1571,7 +1577,7 @@
             outletListHtml += '</div>';
 
             var loadTable = '<div class="bg-white rounded-xl card-shadow overflow-hidden mb-3">';
-            if (sheet.items.length) {
+            if (sheet.items && sheet.items.length) {
                 var lastCat = '';
                 var srNum = 0;
                 var tRows = '';
@@ -1584,10 +1590,10 @@
             } else loadTable += '<div class="p-6 text-center text-gray-400 text-sm"><i class="fa-solid fa-box-open text-2xl mb-2"></i><p>No items</p></div>';
             loadTable +=
                 '<div class="p-3 bg-gray-50 border-t border-gray-100 grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">' +
-                '<div><span class="text-gray-500 block text-[10px]">Cases</span><span class="font-bold">' + sheet.items.reduce(function(s, i) { return s + i.cases }, 0) + '</span></div>' +
-                '<div><span class="text-gray-500 block text-[10px]">Units</span><span class="font-bold">' + sheet.items.reduce(function(s, i) { return s + i.cases * i.units }, 0) + '</span></div>' +
-                '<div><span class="text-gray-500 block text-[10px]">Gross</span><span class="font-bold">' + fmtN(sheet.items.reduce(function(s, i) { return s + i.amount }, 0)) + '</span></div>' +
-                '<div><span class="text-gray-500 block text-[10px]">Net</span><span class="font-bold text-pri">' + fmtN(sheet.items.reduce(function(s, i) { return s + i.amount }, 0) - sheet.totalDiscount) + '</span></div>' +
+                '<div><span class="text-gray-500 block text-[10px]">Cases</span><span class="font-bold">' + (sheet.items ? sheet.items.reduce(function(s, i) { return s + i.cases }, 0) : 0) + '</span></div>' +
+                '<div><span class="text-gray-500 block text-[10px]">Units</span><span class="font-bold">' + (sheet.items ? sheet.items.reduce(function(s, i) { return s + i.cases * i.units }, 0) : 0) + '</span></div>' +
+                '<div><span class="text-gray-500 block text-[10px]">Gross</span><span class="font-bold">' + fmtN(sheet.items ? sheet.items.reduce(function(s, i) { return s + i.amount }, 0) : 0) + '</span></div>' +
+                '<div><span class="text-gray-500 block text-[10px]">Net</span><span class="font-bold text-pri">' + fmtN((sheet.items ? sheet.items.reduce(function(s, i) { return s + i.amount }, 0) : 0) - (sheet.totalDiscount || 0)) + '</span></div>' +
                 '</div></div>';
 
             var printBtn = selIds.length > 0 ?
@@ -1775,7 +1781,7 @@
         }
 
         // ============================================================
-        // ADMIN LOAD SHEET
+        // ADMIN LOAD SHEET - FIXED VERSION
         // ============================================================
         function renderAdminLoadSheet() {
             var spData = getAllSalesPersons();
@@ -1808,7 +1814,7 @@
             outletListHtml += '</div>';
 
             var loadTable = '<div class="bg-white rounded-xl card-shadow overflow-hidden mb-3">';
-            if (sheet.items.length) {
+            if (sheet.items && sheet.items.length) {
                 var lastCat = '';
                 var srNum = 0;
                 var tRows = '';
@@ -1821,10 +1827,10 @@
             } else loadTable += '<div class="p-6 text-center text-gray-400 text-sm"><i class="fa-solid fa-box-open text-2xl mb-2"></i><p>No items</p></div>';
             loadTable +=
                 '<div class="p-3 bg-gray-50 border-t border-gray-100 grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">' +
-                '<div><span class="text-gray-500 block text-[10px]">Cases</span><span class="font-bold">' + sheet.items.reduce(function(s, i) { return s + i.cases }, 0) + '</span></div>' +
-                '<div><span class="text-gray-500 block text-[10px]">Units</span><span class="font-bold">' + sheet.items.reduce(function(s, i) { return s + i.cases * i.units }, 0) + '</span></div>' +
-                '<div><span class="text-gray-500 block text-[10px]">Gross</span><span class="font-bold">' + fmtN(sheet.items.reduce(function(s, i) { return s + i.amount }, 0)) + '</span></div>' +
-                '<div><span class="text-gray-500 block text-[10px]">Net</span><span class="font-bold text-pri">' + fmtN(sheet.items.reduce(function(s, i) { return s + i.amount }, 0) - sheet.totalDiscount) + '</span></div>' +
+                '<div><span class="text-gray-500 block text-[10px]">Cases</span><span class="font-bold">' + (sheet.items ? sheet.items.reduce(function(s, i) { return s + i.cases }, 0) : 0) + '</span></div>' +
+                '<div><span class="text-gray-500 block text-[10px]">Units</span><span class="font-bold">' + (sheet.items ? sheet.items.reduce(function(s, i) { return s + i.cases * i.units }, 0) : 0) + '</span></div>' +
+                '<div><span class="text-gray-500 block text-[10px]">Gross</span><span class="font-bold">' + fmtN(sheet.items ? sheet.items.reduce(function(s, i) { return s + i.amount }, 0) : 0) + '</span></div>' +
+                '<div><span class="text-gray-500 block text-[10px]">Net</span><span class="font-bold text-pri">' + fmtN((sheet.items ? sheet.items.reduce(function(s, i) { return s + i.amount }, 0) : 0) - (sheet.totalDiscount || 0)) + '</span></div>' +
                 '</div></div>';
 
             var printBtn = selIds.length > 0 ?
@@ -2006,7 +2012,7 @@
         }
 
         // ============================================================
-        // DATA FUNCTIONS FOR PRINTING
+        // DATA FUNCTIONS FOR PRINTING - FIXED VERSION
         // ============================================================
         function getLoadSheet(date, spFilter, selectedIds) {
             var sql = "SELECT oi.product_id,oi.product_name,oi.pack,oi.cases,oi.units_per_case,oi.unit_price,oi.line_total,p.category FROM order_items oi JOIN orders o ON oi.order_id=o.order_id LEFT JOIN products p ON oi.product_id=p.id WHERE o.order_date='" + esc(date) + "'";
@@ -2017,30 +2023,46 @@
             var r = db.exec(sql);
             var items = [];
             var totalDiscount = 0;
+            
             if (r.length) {
+                var rows = r[0].values;
                 var agg = {};
-                r[0].values.forEach(function(row) { 
-                    var key = row[1] + '|' + row[2]; 
-                    if (!agg[key]) agg[key] = { 
-                        name: row[1], 
-                        pack: row[2], 
-                        cases: 0, 
-                        units: row[4] || 24, 
-                        price: row[5] || 0, 
-                        amount: 0, 
-                        cat: row[6] || 'Other' 
-                    }; 
-                    agg[key].cases += row[3]; 
-                    agg[key].amount += row[6] || 0;
+                
+                rows.forEach(function(row) {
+                    // row[0]=product_id, row[1]=product_name, row[2]=pack, row[3]=cases, row[4]=units_per_case, row[5]=unit_price, row[6]=line_total, row[7]=category
+                    var key = row[1] + '|' + row[2];
+                    var cat = row[7] || 'Other';
+                    var amount = row[6] || 0;
+                    
+                    if (!agg[key]) {
+                        agg[key] = { 
+                            name: row[1], 
+                            pack: row[2], 
+                            cases: 0, 
+                            units: row[4] || 24, 
+                            price: row[5] || 0, 
+                            amount: 0, 
+                            cat: cat
+                        };
+                    }
+                    agg[key].cases += row[3];
+                    agg[key].amount += amount;
                 });
+                
                 items = Object.values(agg);
-                var discSql = "SELECT COALESCE(SUM(discount),0) FROM orders WHERE order_date='" + esc(date) + "'" + (spFilter ? " AND sp_username='" + esc(spFilter) + "'" : "");
+                
+                // Calculate total discount
+                var discSql = "SELECT COALESCE(SUM(discount),0) FROM orders WHERE order_date='" + esc(date) + "'";
+                if (spFilter) discSql += " AND sp_username='" + esc(spFilter) + "'";
                 if (selectedIds && selectedIds.length > 0) {
                     discSql += " AND order_id IN ('" + selectedIds.map(function(id) { return esc(id) }).join("','") + "')";
                 }
                 var dr = db.exec(discSql);
-                if (dr.length) totalDiscount = dr[0].values[0][0];
+                if (dr.length && dr[0].values.length > 0) {
+                    totalDiscount = dr[0].values[0][0] || 0;
+                }
             }
+            
             return { items: items, totalDiscount: totalDiscount };
         }
 
@@ -2218,26 +2240,28 @@
                 if (sr.length) spName = sr[0].values[0][0];
             }
 
-            var totalCases = sheet.items.reduce(function(s, i) { return s + i.cases }, 0);
-            var totalUnits = sheet.items.reduce(function(s, i) { return s + i.cases * i.units }, 0);
-            var totalValue = sheet.items.reduce(function(s, i) { return s + i.amount }, 0);
+            var totalCases = sheet.items ? sheet.items.reduce(function(s, i) { return s + i.cases }, 0) : 0;
+            var totalUnits = sheet.items ? sheet.items.reduce(function(s, i) { return s + i.cases * i.units }, 0) : 0;
+            var totalValue = sheet.items ? sheet.items.reduce(function(s, i) { return s + i.amount }, 0) : 0;
 
             var rows = '';
             var lastCat = '';
             var srNum = 0;
-            sortItems(sheet.items).forEach(function(it) {
-                if (it.cat !== lastCat) {
-                    srNum = 0;
-                    rows += '<tr style="background:#edfaf7"><td colspan="6" style="font-weight:bold;font-size:11px;color:#0a5e52;padding:6px 4px">' + escH(it.cat) + '</td></tr>';
-                    lastCat = it.cat;
-                }
-                srNum++;
-                rows += '<tr><td>' + srNum + '</td><td>' + escH(it.name) +
-                    '</td><td style="font-size:10px;color:#666">' + escH(it.pack) +
-                    '</td><td style="text-align:center">' + it.cases +
-                    '</td><td style="text-align:center">' + (it.cases * it.units) +
-                    '</td><td style="text-align:right">' + (it.amount ? fmtN(it.amount) : '-') + '</td></tr>';
-            });
+            if (sheet.items) {
+                sortItems(sheet.items).forEach(function(it) {
+                    if (it.cat !== lastCat) {
+                        srNum = 0;
+                        rows += '<tr style="background:#edfaf7"><td colspan="6" style="font-weight:bold;font-size:11px;color:#0a5e52;padding:6px 4px">' + escH(it.cat) + '</td></tr>';
+                        lastCat = it.cat;
+                    }
+                    srNum++;
+                    rows += '<tr><td>' + srNum + '</td><td>' + escH(it.name) +
+                        '</td><td style="font-size:10px;color:#666">' + escH(it.pack) +
+                        '</td><td style="text-align:center">' + it.cases +
+                        '</td><td style="text-align:center">' + (it.cases * it.units) +
+                        '</td><td style="text-align:right">' + (it.amount ? fmtN(it.amount) : '-') + '</td></tr>';
+                });
+            }
 
             var w = window.open('', '_blank', 'width=800,height=900');
             w.document.write(
@@ -2266,7 +2290,7 @@
             if (sheet.totalDiscount > 0) w.document.write('<tr><td>Discount</td><td style="text-align:right">- ' + fmtN(sheet.totalDiscount) + '</td></tr>');
             w.document.write(
                 '<tr style="font-size:14px;border-top:2px solid #000"><td class="bold">NET TOTAL</td><td style="text-align:right;font-weight:bold">' +
-                fmtN(totalValue - sheet.totalDiscount) + '</td></tr></table>'
+                fmtN(totalValue - (sheet.totalDiscount || 0)) + '</td></tr></table>'
                 );
             w.document.write('<div class="dline"></div>');
             w.document.write(
